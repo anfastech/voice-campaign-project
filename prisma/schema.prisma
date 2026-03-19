@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VoiceProvider {
+  ULTRAVOX
+  ELEVENLABS
+  VAPI
+  LIVEKIT
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  agents        Agent[]
+  campaigns     Campaign[]
+  contacts      Contact[]
+}
+
+model Agent {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?       @db.Text
+  systemPrompt      String        @db.Text
+  provider          VoiceProvider @default(ULTRAVOX)
+  voice             String        @default("Mark")
+  language          String        @default("en")
+  temperature       Float         @default(0.7)
+  firstMessage      String?       @db.Text
+  maxDuration       Int           @default(300)
+  // Provider-specific IDs (populated after agent is registered with each provider)
+  ultravoxAgentId   String?
+  livekitAgentName  String?
+  elevenLabsAgentId String?
+  vapiAssistantId   String?
+  // Extra provider config (e.g. VAPI phone number ID)
+  providerConfig    Json?
+  isActive          Boolean       @default(true)
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calls             Call[]
+  campaigns         Campaign[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([provider])
+}
+
+model Contact {
+  id               String            @id @default(cuid())
+  phoneNumber      String
+  name             String?
+  email            String?
+  tags             String[]
+  customFields     Json?
+  doNotCall        Boolean           @default(false)
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calls            Call[]
+  campaignContacts CampaignContact[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([userId, phoneNumber])
+  @@index([userId])
+  @@index([doNotCall])
+}
+
+model Campaign {
+  id                String            @id @default(cuid())
+  name              String
+  description       String?           @db.Text
+  status            CampaignStatus    @default(DRAFT)
+  agentId           String
+  agent             Agent             @relation(fields: [agentId], references: [id])
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  maxRetries        Int               @default(3)
+  retryDelayMinutes Int               @default(60)
+  callsPerMinute    Int               @default(5)
+  contacts          CampaignContact[]
+  calls             Call[]
+  totalContacts     Int               @default(0)
+  completedCalls    Int               @default(0)
+  successfulCalls   Int               @default(0)
+  failedCalls       Int               @default(0)
+  totalCost         Float             @default(0)
+  totalDuration     Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model CampaignContact {
+  id          String        @id @default(cuid())
+  campaignId  String
+  campaign    Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact       @relation(fields: [contactId], references: [id])
+  status      ContactStatus @default(PENDING)
+  attempts    Int           @default(0)
+  lastAttempt DateTime?
+  nextAttempt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([nextAttempt])
+}
+
+enum ContactStatus {
+  PENDING
+  CALLING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model Call {
+  id             String     @id @default(cuid())
+  campaignId     String?
+  campaign       Campaign?  @relation(fields: [campaignId], references: [id])
+  agentId        String
+  agent          Agent      @relation(fields: [agentId], references: [id])
+  contactId      String
+  contact        Contact    @relation(fields: [contactId], references: [id])
+  phoneNumber    String
+  status         CallStatus @default(INITIATED)
+  direction      String     @default("outbound")
+  duration       Int?
+  cost           Float?
+  recordingUrl   String?
+  transcript     String?    @db.Text
+  summary        String?    @db.Text
+  providerCallId   String?    // unified field across all providers
+  ultravoxCallId   String?
+  elevenLabsCallId String?
+  vapiCallId       String?
+  errorMessage     String?    @db.Text
+  metadata       Json?
+  startedAt      DateTime   @default(now())
+  answeredAt     DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime   @default(now())
+
+  @@index([campaignId])
+  @@index([agentId])
+  @@index([contactId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+  CANCELLED
+}

@@ -1,0 +1,54 @@
+import { z } from 'zod'
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import {
+  listAgents,
+  createAgent,
+  getAgent,
+  generateAgent,
+} from '../../lib/services/agent-service'
+
+export function registerAgentTools(server: McpServer) {
+  server.registerTool('list_agents', {
+    description: 'List all active voice AI agents',
+  }, async () => {
+    const agents = await listAgents()
+    return { content: [{ type: 'text' as const, text: JSON.stringify(agents, null, 2) }] }
+  })
+
+  server.registerTool('create_agent', {
+    description: 'Create a new voice AI agent with system prompt, voice, and provider configuration',
+    inputSchema: {
+      name: z.string().min(1),
+      description: z.string().optional(),
+      systemPrompt: z.string().min(1),
+      provider: z.enum(['ULTRAVOX', 'ELEVENLABS', 'VAPI', 'LIVEKIT']).optional(),
+      voice: z.string().optional(),
+      language: z.string().optional(),
+      temperature: z.number().min(0).max(1).optional(),
+      maxDuration: z.number().int().min(30).max(3600).optional(),
+    },
+  }, async (args) => {
+    const agent = await createAgent(args)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(agent, null, 2) }] }
+  })
+
+  server.registerTool('get_agent', {
+    description: 'Get detailed information about a specific agent including recent calls',
+    inputSchema: {
+      id: z.string(),
+    },
+  }, async (args) => {
+    const agent = await getAgent(args.id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(agent, null, 2) }] }
+  })
+
+  server.registerTool('generate_agent', {
+    description: 'AI-generate a voice agent configuration from a natural language description. Uses Claude to create optimal name, system prompt, voice, and provider settings.',
+    inputSchema: {
+      description: z.string().min(1).describe('Description of what the agent should do'),
+    },
+  }, async (args) => {
+    const config = await generateAgent(args.description)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(config, null, 2) }] }
+  })
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { listAgents, createAgent } from '@/lib/services/agent-service'
 import { z } from 'zod'
 
 const agentSchema = z.object({
@@ -17,13 +17,7 @@ const agentSchema = z.object({
 
 export async function GET() {
   try {
-    const agents = await prisma.agent.findMany({
-      where: { userId: 'default-user', isActive: true },
-      include: {
-        _count: { select: { calls: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    const agents = await listAgents()
     return NextResponse.json(agents)
   } catch (error) {
     console.error('Agents GET error:', error)
@@ -35,16 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = agentSchema.parse(body)
-
-    const { providerConfig, ...rest } = data
-    const agent = await prisma.agent.create({
-      data: {
-        ...rest,
-        userId: 'default-user',
-        ...(providerConfig ? { providerConfig: providerConfig as Record<string, string> } : {}),
-      },
-    })
-
+    const agent = await createAgent(data)
     return NextResponse.json(agent, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

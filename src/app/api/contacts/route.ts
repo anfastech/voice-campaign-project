@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { listContacts, createContact } from '@/lib/services/contact-service'
 import { z } from 'zod'
 
 const contactSchema = z.object({
@@ -13,35 +13,12 @@ const contactSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const search = searchParams.get('search')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '100')
-
-    const where = {
-      userId: 'default-user',
-      ...(search ? {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' as const } },
-          { phoneNumber: { contains: search } },
-          { email: { contains: search, mode: 'insensitive' as const } },
-        ],
-      } : {}),
-    }
-
-    const [contacts, total] = await Promise.all([
-      prisma.contact.findMany({
-        where,
-        include: {
-          _count: { select: { calls: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.contact.count({ where }),
-    ])
-
-    return NextResponse.json({ contacts, total, page, limit, pages: Math.ceil(total / limit) })
+    const result = await listContacts({
+      search: searchParams.get('search') || undefined,
+      page: parseInt(searchParams.get('page') || '1'),
+      limit: parseInt(searchParams.get('limit') || '100'),
+    })
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Contacts GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 })
@@ -52,18 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = contactSchema.parse(body)
-
-    const contact = await prisma.contact.create({
-      data: {
-        phoneNumber: data.phoneNumber,
-        name: data.name,
-        email: data.email,
-        tags: data.tags,
-        doNotCall: data.doNotCall,
-        userId: 'default-user',
-      },
-    })
-
+    const contact = await createContact(data)
     return NextResponse.json(contact, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

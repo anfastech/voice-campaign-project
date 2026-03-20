@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     '@anthropic-ai/sdk',
     'papaparse',
     'ultravox-client',
+    '@modelcontextprotocol/sdk',
   ],
 
   experimental: {

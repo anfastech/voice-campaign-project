@@ -86,9 +86,10 @@ export async function updateContact(id: string, data: Record<string, unknown>) {
 }
 
 export async function deleteContact(id: string) {
-  await prisma.contact.delete({
-    where: { id },
-  })
+  await prisma.$transaction([
+    prisma.campaignContact.deleteMany({ where: { contactId: id } }),
+    prisma.contact.delete({ where: { id } }),
+  ])
 }
 
 export async function importContacts(csvData: Array<Record<string, string>>) {

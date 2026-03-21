@@ -2,9 +2,11 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import { CampaignStatusBadge } from '@/components/campaigns/CampaignStatusBadge'
+import { TranscriptModal } from '@/components/calls/TranscriptModal'
 import {
-  ArrowLeft, Play, Pause, Phone, CheckCircle, XCircle, DollarSign
+  ArrowLeft, Play, Pause, Phone, CheckCircle, XCircle, DollarSign, PhoneOff, Ban, Users, FileText, Sparkles, RefreshCw
 } from 'lucide-react'
 import { formatCurrency, formatDuration, formatDate } from '@/lib/utils'
 
@@ -18,11 +20,22 @@ const callStatusConfig: Record<string, { bg: string; text: string; dot: string; 
   CANCELLED:   { bg: 'oklch(0.59 0.245 15 / 8%)',   text: 'oklch(0.52 0.245 15)',  dot: 'oklch(0.59 0.245 15)', label: 'Cancelled' },
 }
 
+const contactStatusConfig: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  PENDING:     { bg: 'oklch(0.6 0.015 285 / 8%)',   text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)', label: 'Pending' },
+  CALLING:     { bg: 'oklch(0.49 0.263 281 / 8%)',  text: 'oklch(0.49 0.263 281)', dot: 'oklch(0.49 0.263 281)', label: 'Calling' },
+  COMPLETED:   { bg: 'oklch(0.55 0.215 163 / 12%)', text: 'oklch(0.45 0.215 163)', dot: 'oklch(0.55 0.215 163)', label: 'Completed' },
+  FAILED:      { bg: 'oklch(0.59 0.245 15 / 10%)',  text: 'oklch(0.52 0.245 15)',  dot: 'oklch(0.59 0.245 15)',  label: 'Failed' },
+  SKIPPED:     { bg: 'oklch(0.6 0.015 285 / 8%)',   text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)', label: 'Skipped' },
+  NO_ANSWER:   { bg: 'oklch(0.72 0.18 68 / 10%)',   text: 'oklch(0.55 0.18 68)',   dot: 'oklch(0.72 0.18 68)',   label: 'No Answer' },
+}
+
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
   const id = params.id as string
+  const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const initialSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', id],
@@ -32,13 +45,70 @@ export default function CampaignDetailPage() {
 
   const startMutation = useMutation({
     mutationFn: () => fetch(`/api/campaigns/${id}/start`, { method: 'POST' }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaign', id] })
+      // Fire first sync 5s after starting
+      if (initialSyncRef.current) clearTimeout(initialSyncRef.current)
+      initialSyncRef.current = setTimeout(() => {
+        syncMutation.mutate()
+      }, 5000)
+    },
   })
 
   const pauseMutation = useMutation({
     mutationFn: () => fetch(`/api/campaigns/${id}/pause`, { method: 'POST' }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
   })
+
+  const cancelMutation = useMutation({
+    mutationFn: () => fetch(`/api/campaigns/${id}/cancel`, { method: 'POST' }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
+  })
+
+  const syncMutation = useMutation({
+    mutationFn: () => fetch(`/api/campaigns/${id}/sync`, { method: 'POST' }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
+  })
+
+  const [selectedCall, setSelectedCall] = useState<any>(null)
+
+  const completedCalls = campaign?.completedCalls ?? 0
+  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery({
+    queryKey: ['campaign-insights', id],
+    queryFn: () => fetch(`/api/campaigns/${id}/summary`).then((r) => r.json()),
+    enabled: completedCalls >= 2,
+    staleTime: 60_000,
+  })
+
+  // Auto-sync polling when campaign is RUNNING
+  useEffect(() => {
+    if (campaign?.status === 'RUNNING') {
+      syncTimerRef.current = setInterval(() => {
+        syncMutation.mutate()
+      }, 10_000)
+    }
+
+    return () => {
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current)
+        syncTimerRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.status, id])
+
+  // Cleanup initial sync timer
+  useEffect(() => {
+    return () => {
+      if (initialSyncRef.current) clearTimeout(initialSyncRef.current)
+    }
+  }, [])
+
+  const handleCancel = () => {
+    if (window.confirm('Are you sure you want to cancel this campaign? This will skip all remaining contacts.')) {
+      cancelMutation.mutate()
+    }
+  }
 
   if (isLoading) {
     return (
@@ -87,6 +157,8 @@ export default function CampaignDetailPage() {
     ? (campaign.completedCalls / campaign.totalContacts) * 100
     : 0
 
+  const noAnswerCount = campaign.contacts?.filter((cc: any) => cc.status === 'NO_ANSWER').length ?? 0
+
   const statCards = [
     {
       label: 'Total Contacts',
@@ -111,6 +183,14 @@ export default function CampaignDetailPage() {
       iconBg: 'oklch(0.59 0.245 15 / 10%)',
       iconColor: 'oklch(0.59 0.245 15)',
       valueColor: 'oklch(0.59 0.245 15)',
+    },
+    {
+      label: 'No Answer',
+      value: noAnswerCount,
+      icon: PhoneOff,
+      iconBg: 'oklch(0.72 0.18 68 / 10%)',
+      iconColor: 'oklch(0.55 0.18 68)',
+      valueColor: 'oklch(0.55 0.18 68)',
     },
     {
       label: 'Total Cost',
@@ -146,6 +226,23 @@ export default function CampaignDetailPage() {
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
+          {/* Cancel button */}
+          {(campaign.status === 'RUNNING' || campaign.status === 'PAUSED' || campaign.status === 'DRAFT') && (
+            <button
+              onClick={handleCancel}
+              disabled={cancelMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 disabled:opacity-60"
+              style={{
+                background: 'oklch(0.59 0.245 15 / 8%)',
+                border: '1px solid oklch(0.59 0.245 15 / 20%)',
+                color: 'oklch(0.52 0.245 15)',
+              }}
+            >
+              <Ban className="w-3.5 h-3.5" />
+              {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
+            </button>
+          )}
+
           {campaign.status === 'RUNNING' ? (
             <button
               onClick={() => pauseMutation.mutate()}
@@ -166,14 +263,30 @@ export default function CampaignDetailPage() {
               }}
             >
               <Play className="w-3.5 h-3.5" />
-              {startMutation.isPending ? 'Starting...' : 'Start'}
+              {startMutation.isPending ? 'Starting...' : campaign.status === 'PAUSED' ? 'Retry' : 'Start'}
             </button>
           ) : null}
         </div>
       </div>
 
+      {/* Retry Banner */}
+      {campaign.status === 'PAUSED' && noAnswerCount > 0 && (
+        <div
+          className="rounded-2xl px-5 py-4 flex items-center gap-3"
+          style={{
+            background: 'oklch(0.72 0.18 68 / 8%)',
+            border: '1px solid oklch(0.72 0.18 68 / 20%)',
+          }}
+        >
+          <PhoneOff className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.55 0.18 68)' }} />
+          <p className="text-sm" style={{ color: 'oklch(0.45 0.18 68)' }}>
+            <span className="font-semibold">{noAnswerCount} contact{noAnswerCount !== 1 ? 's' : ''}</span> did not respond — Click <strong>Retry</strong> to re-call.
+          </p>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor, valueColor }) => (
           <div
             key={label}
@@ -217,6 +330,117 @@ export default function CampaignDetailPage() {
         </p>
       </div>
 
+      {/* Campaign Insights */}
+      {completedCalls >= 2 && (
+        <div
+          className="rounded-2xl p-5"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: 'oklch(0.65 0.22 310)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Campaign Insights</p>
+            </div>
+            <button
+              onClick={() => refetchInsights()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+            >
+              <RefreshCw className="w-3 h-3" />
+              Refresh
+            </button>
+          </div>
+          {insightsLoading ? (
+            <div className="h-16 rounded-xl relative overflow-hidden" style={{ background: 'var(--muted)' }}>
+              <div className="absolute inset-0 shimmer" />
+            </div>
+          ) : insightsData?.summary ? (
+            <div
+              className="rounded-xl p-4 text-sm leading-relaxed"
+              style={{
+                background: 'oklch(0.65 0.22 310 / 6%)',
+                border: '1px solid oklch(0.65 0.22 310 / 15%)',
+                color: 'var(--foreground)',
+              }}
+            >
+              {insightsData.summary}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Not enough calls with summaries to generate insights yet.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Contact Status Table */}
+      {campaign.contacts?.length > 0 && (
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        >
+          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <Users className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Contact Status</p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: 'var(--muted)' }}>
+                  {['Name', 'Phone', 'Status', 'Attempts'].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: 'var(--muted-foreground)', borderBottom: '1px solid var(--border)' }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {campaign.contacts.map((cc: any, idx: number) => {
+                  const cfg = contactStatusConfig[cc.status] || contactStatusConfig.PENDING
+                  return (
+                    <tr
+                      key={cc.id}
+                      className="transition-colors duration-150"
+                      style={{
+                        borderBottom: idx < campaign.contacts.length - 1 ? '1px solid var(--border)' : 'none',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'oklch(0.5 0 0 / 3%)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td className="px-5 py-3.5">
+                        <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+                          {cc.contact?.name || 'Unknown'}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        {cc.contact?.phoneNumber || '—'}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                          style={{ background: cfg.bg, color: cfg.text }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        {cc.attempts}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Call History Table */}
       <div
         className="rounded-2xl overflow-hidden"
@@ -253,18 +477,30 @@ export default function CampaignDetailPage() {
                   return (
                     <tr
                       key={call.id}
-                      className="transition-colors duration-150"
+                      className="transition-colors duration-150 cursor-pointer"
                       style={{
                         borderBottom: idx < campaign.calls.length - 1 ? '1px solid var(--border)' : 'none',
                       }}
+                      onClick={() => setSelectedCall({
+                        ...call,
+                        agent: { name: campaign.agent?.name || 'AI Agent' },
+                        campaign: { name: campaign.name },
+                      })}
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'oklch(0.5 0 0 / 3%)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td className="px-5 py-3.5">
-                        <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-                          {call.contact?.name || call.phoneNumber}
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.phoneNumber}</p>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
+                              {call.contact?.name || call.phoneNumber}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.phoneNumber}</p>
+                          </div>
+                          {call.transcript && (
+                            <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-40" style={{ color: 'var(--muted-foreground)' }} />
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5">
                         <span
@@ -292,6 +528,8 @@ export default function CampaignDetailPage() {
           </div>
         )}
       </div>
+
+      <TranscriptModal call={selectedCall} onClose={() => setSelectedCall(null)} />
     </div>
   )
 }

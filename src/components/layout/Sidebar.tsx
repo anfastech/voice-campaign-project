@@ -10,6 +10,7 @@ import {
   Phone,
   Zap,
   Activity,
+  BookOpen,
 } from 'lucide-react'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -17,6 +18,7 @@ const navItems = [
   { href: '/agents', label: 'AI Agents', icon: Bot },
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/calls', label: 'Call Logs', icon: Phone },
+  { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
 ]
 
 function isActive(pathname: string, href: string): boolean {

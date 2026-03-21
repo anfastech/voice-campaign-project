@@ -111,6 +111,7 @@ export async function syncCampaignCalls(campaignId: string): Promise<{
             duration: details.durationSeconds ?? null,
             transcript: details.transcript ?? null,
             endedAt: details.endedAt ? new Date(details.endedAt) : new Date(),
+            recordingAvailable: details.hasAudio === true,
           })
           if (details.transcript) {
             generateCallSummary(call.id).catch((err) =>

@@ -30,11 +30,18 @@ const VOICE_ID_MAP: Record<string, string> = {
   sam: 'yoZ06aMxZJJ28mfd3POQ',
 }
 
+function getWebhookUrl(): string | null {
+  const base = process.env.APP_URL || process.env.NEXTAUTH_URL
+  if (!base) return null
+  return `${base.replace(/\/$/, '')}/api/webhooks/elevenlabs`
+}
+
 export class ElevenLabsProvider implements VoiceProviderService {
   readonly providerName = 'ELEVENLABS' as const
 
   async createAgent(config: AgentConfig): Promise<{ providerAgentId: string }> {
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
+    const webhookUrl = getWebhookUrl()
 
     const agentData = await elFetch('/convai/agents/create', {
       method: 'POST',
@@ -45,12 +52,17 @@ export class ElevenLabsProvider implements VoiceProviderService {
             prompt: { prompt: config.systemPrompt },
             first_message: config.firstMessage || 'Hello! How are you doing today?',
             language: config.language || 'en',
+            ...(config.knowledge_base?.length ? { knowledge_base: config.knowledge_base } : {}),
           },
           tts: { voice_id: voiceId },
           conversation: {
             max_duration_seconds: config.maxDuration || 300,
           },
         },
+        ...(config.tools?.length ? { tools: config.tools } : {}),
+        ...(webhookUrl
+          ? { platform_settings: { webhook: { url: webhookUrl } } }
+          : {}),
       }),
     })
 
@@ -60,11 +72,12 @@ export class ElevenLabsProvider implements VoiceProviderService {
   async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
     const conversationConfig: Record<string, unknown> = {}
 
-    if (config.systemPrompt || config.firstMessage || config.language) {
+    if (config.systemPrompt || config.firstMessage || config.language || config.knowledge_base !== undefined) {
       conversationConfig.agent = {
         ...(config.systemPrompt ? { prompt: { prompt: config.systemPrompt } } : {}),
         ...(config.firstMessage ? { first_message: config.firstMessage } : {}),
         ...(config.language ? { language: config.language } : {}),
+        ...(config.knowledge_base !== undefined ? { knowledge_base: config.knowledge_base } : {}),
       }
     }
     if (config.voice) {
@@ -75,12 +88,19 @@ export class ElevenLabsProvider implements VoiceProviderService {
       conversationConfig.conversation = { max_duration_seconds: config.maxDuration }
     }
 
+    const webhookUrl = getWebhookUrl()
+    const body: Record<string, unknown> = {
+      ...(Object.keys(conversationConfig).length > 0 ? { conversation_config: conversationConfig } : {}),
+      ...(config.name ? { name: config.name } : {}),
+      ...(config.tools !== undefined ? { tools: config.tools } : {}),
+      ...(webhookUrl
+        ? { platform_settings: { webhook: { url: webhookUrl } } }
+        : {}),
+    }
+
     await elFetch(`/convai/agents/${providerAgentId}`, {
       method: 'PATCH',
-      body: JSON.stringify({
-        conversation_config: conversationConfig,
-        ...(config.name ? { name: config.name } : {}),
-      }),
+      body: JSON.stringify(body),
     })
   }
 
@@ -148,6 +168,7 @@ export class ElevenLabsProvider implements VoiceProviderService {
       providerCallId: callId,
       status: statusMap[data.status] || data.status?.toUpperCase() || 'UNKNOWN',
       durationSeconds: data.metadata?.call_duration_secs,
+      hasAudio: data.has_audio === true,
       transcript: data.transcript
         ?.map((t: { role: string; message: string }) => `${t.role}: ${t.message}`)
         .join('\n'),
@@ -166,6 +187,69 @@ export class ElevenLabsProvider implements VoiceProviderService {
         .join('\n')
     } catch {
       return null
+    }
+  }
+
+  // Returns the raw Response for streaming — must NOT use elFetch (which calls .json())
+  async getConversationAudio(conversationId: string): Promise<Response> {
+    const res = await fetch(`${BASE_URL}/convai/conversations/${conversationId}/audio`, {
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
+    }
+    return res
+  }
+
+  // -------------------------------------------------------------------------
+  // Knowledge Base
+  // -------------------------------------------------------------------------
+
+  async uploadKBText(name: string, text: string): Promise<string> {
+    const data = await elFetch('/convai/knowledge-base/documents/text', {
+      method: 'POST',
+      body: JSON.stringify({ name, text }),
+    })
+    return data.document_id as string
+  }
+
+  async uploadKBUrl(name: string, url: string): Promise<string> {
+    const data = await elFetch('/convai/knowledge-base/documents/url', {
+      method: 'POST',
+      body: JSON.stringify({ name, url }),
+    })
+    return data.document_id as string
+  }
+
+  async uploadKBFile(name: string, fileBuffer: Buffer, fileName: string): Promise<string> {
+    const formData = new FormData()
+    const ab = fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength) as ArrayBuffer
+    const blob = new Blob([ab])
+    formData.append('file', blob, fileName)
+    formData.append('name', name)
+
+    const res = await fetch(`${BASE_URL}/convai/knowledge-base/documents/file`, {
+      method: 'POST',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+      body: formData,
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
+    }
+    const data = await res.json()
+    return data.document_id as string
+  }
+
+  async deleteKBDocument(documentId: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/convai/knowledge-base/documents/${documentId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
     }
   }
 }

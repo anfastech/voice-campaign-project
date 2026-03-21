@@ -20,27 +20,40 @@ const callStatusConfig: Record<string, { bg: string; text: string; dot: string; 
   CANCELLED:   { bg: 'oklch(0.59 0.245 15 / 8%)',   text: 'oklch(0.52 0.245 15)',  dot: 'oklch(0.59 0.245 15)', label: 'Cancelled' },
 }
 
-const contactStatusConfig: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  PENDING:     { bg: 'oklch(0.6 0.015 285 / 8%)',   text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)', label: 'Pending' },
-  CALLING:     { bg: 'oklch(0.49 0.263 281 / 8%)',  text: 'oklch(0.49 0.263 281)', dot: 'oklch(0.49 0.263 281)', label: 'Calling' },
-  COMPLETED:   { bg: 'oklch(0.55 0.215 163 / 12%)', text: 'oklch(0.45 0.215 163)', dot: 'oklch(0.55 0.215 163)', label: 'Completed' },
-  FAILED:      { bg: 'oklch(0.59 0.245 15 / 10%)',  text: 'oklch(0.52 0.245 15)',  dot: 'oklch(0.59 0.245 15)',  label: 'Failed' },
-  SKIPPED:     { bg: 'oklch(0.6 0.015 285 / 8%)',   text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)', label: 'Skipped' },
-  NO_ANSWER:   { bg: 'oklch(0.72 0.18 68 / 10%)',   text: 'oklch(0.55 0.18 68)',   dot: 'oklch(0.72 0.18 68)',   label: 'No Answer' },
+// Animated contact status badges for live polling
+const liveContactStatusConfig: Record<string, {
+  bg: string; text: string; dot: string; label: string; pulse?: boolean
+}> = {
+  PENDING:   { bg: 'oklch(0.6 0.015 285 / 8%)',   text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)',  label: 'Waiting',   pulse: false },
+  CALLING:   { bg: 'oklch(0.49 0.263 281 / 10%)', text: 'oklch(0.49 0.263 281)', dot: 'oklch(0.49 0.263 281)', label: 'Calling...', pulse: true  },
+  COMPLETED: { bg: 'oklch(0.55 0.215 163 / 12%)', text: 'oklch(0.45 0.215 163)', dot: 'oklch(0.55 0.215 163)', label: 'Completed', pulse: false },
+  FAILED:    { bg: 'oklch(0.59 0.245 15 / 10%)',  text: 'oklch(0.52 0.245 15)',  dot: 'oklch(0.59 0.245 15)',  label: 'Failed',    pulse: false },
+  NO_ANSWER: { bg: 'oklch(0.72 0.18 68 / 10%)',   text: 'oklch(0.55 0.18 68)',   dot: 'oklch(0.72 0.18 68)',   label: 'No Answer', pulse: false },
+  SKIPPED:   { bg: 'oklch(0.6 0.015 285 / 5%)',   text: 'oklch(0.45 0.015 285)', dot: 'oklch(0.5 0.015 285)',  label: 'Skipped',   pulse: false },
 }
+
+const TERMINAL_STATUSES = ['COMPLETED', 'PAUSED', 'CANCELLED']
 
 export default function CampaignDetailPage() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
   const id = params.id as string
-  const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const liveStatusTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const initialSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', id],
     queryFn: () => fetch(`/api/campaigns/${id}`).then((r) => r.json()),
     refetchInterval: 5000,
+  })
+
+  // Lightweight live-status query for contact badges
+  const { data: liveStatus, refetch: refetchLiveStatus } = useQuery({
+    queryKey: ['campaign-live-status', id],
+    queryFn: () => fetch(`/api/campaigns/${id}/live-status`).then((r) => r.json()),
+    enabled: false, // manually triggered by interval
+    staleTime: Infinity,
   })
 
   const startMutation = useMutation({
@@ -65,12 +78,13 @@ export default function CampaignDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
   })
 
+  // Full sync — manual only
   const syncMutation = useMutation({
     mutationFn: () => fetch(`/api/campaigns/${id}/sync`, { method: 'POST' }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
   })
 
-  const [selectedCall, setSelectedCall] = useState<any>(null)
+  const [selectedCall, setSelectedCall] = useState<Record<string, unknown> | null>(null)
 
   const completedCalls = campaign?.completedCalls ?? 0
   const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery({
@@ -80,18 +94,32 @@ export default function CampaignDetailPage() {
     staleTime: 60_000,
   })
 
-  // Auto-sync polling when campaign is RUNNING
+  // Live-status polling — lightweight, auto-starts when RUNNING, stops on terminal
   useEffect(() => {
-    if (campaign?.status === 'RUNNING') {
-      syncTimerRef.current = setInterval(() => {
-        syncMutation.mutate()
+    const isRunning = campaign?.status === 'RUNNING'
+    const isTerminal = TERMINAL_STATUSES.includes(campaign?.status)
+
+    if (liveStatusTimerRef.current) {
+      clearInterval(liveStatusTimerRef.current)
+      liveStatusTimerRef.current = null
+    }
+
+    if (isRunning) {
+      refetchLiveStatus()
+      liveStatusTimerRef.current = setInterval(() => {
+        refetchLiveStatus()
       }, 10_000)
     }
 
+    if (isTerminal) {
+      // Final fetch on completion so badges show final state
+      refetchLiveStatus()
+    }
+
     return () => {
-      if (syncTimerRef.current) {
-        clearInterval(syncTimerRef.current)
-        syncTimerRef.current = null
+      if (liveStatusTimerRef.current) {
+        clearInterval(liveStatusTimerRef.current)
+        liveStatusTimerRef.current = null
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,7 +185,19 @@ export default function CampaignDetailPage() {
     ? (campaign.completedCalls / campaign.totalContacts) * 100
     : 0
 
-  const noAnswerCount = campaign.contacts?.filter((cc: any) => cc.status === 'NO_ANSWER').length ?? 0
+  const noAnswerCount = campaign.contacts?.filter((cc: { status: string }) => cc.status === 'NO_ANSWER').length ?? 0
+
+  // Use live-status contacts if available, fallback to campaign contacts
+  const displayContacts: Array<{
+    id: string
+    contactId?: string
+    contact?: { name?: string | null; phoneNumber?: string }
+    name?: string | null
+    phone?: string
+    status: string
+    contactStatus?: string
+    attempts?: number
+  }> = liveStatus?.contacts ?? campaign.contacts ?? []
 
   const statCards = [
     {
@@ -226,6 +266,19 @@ export default function CampaignDetailPage() {
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
+          {/* Manual Sync button */}
+          {(campaign.status === 'RUNNING') && (
+            <button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 hover:scale-105 disabled:opacity-60"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+            >
+              <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              Sync
+            </button>
+          )}
+
           {/* Cancel button */}
           {(campaign.status === 'RUNNING' || campaign.status === 'PAUSED' || campaign.status === 'DRAFT') && (
             <button
@@ -373,15 +426,23 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
-      {/* Contact Status Table */}
-      {campaign.contacts?.length > 0 && (
+      {/* Contact Status Table — with animated live badges */}
+      {displayContacts.length > 0 && (
         <div
           className="rounded-2xl overflow-hidden"
           style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
         >
-          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
-            <Users className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Contact Status</p>
+          <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Contact Status</p>
+            </div>
+            {campaign.status === 'RUNNING' && (
+              <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'oklch(0.55 0.215 163)' }} />
+                Live
+              </span>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -400,37 +461,46 @@ export default function CampaignDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {campaign.contacts.map((cc: any, idx: number) => {
-                  const cfg = contactStatusConfig[cc.status] || contactStatusConfig.PENDING
+                {displayContacts.map((cc, idx: number) => {
+                  // Support both live-status shape and campaign shape
+                  const statusKey = cc.contactStatus ?? cc.status ?? 'PENDING'
+                  const cfg = liveContactStatusConfig[statusKey] || liveContactStatusConfig.PENDING
+                  const name = cc.name ?? cc.contact?.name ?? 'Unknown'
+                  const phone = cc.phone ?? cc.contact?.phoneNumber ?? '—'
+                  const attempts = cc.attempts ?? 0
+
                   return (
                     <tr
                       key={cc.id}
                       className="transition-colors duration-150"
                       style={{
-                        borderBottom: idx < campaign.contacts.length - 1 ? '1px solid var(--border)' : 'none',
+                        borderBottom: idx < displayContacts.length - 1 ? '1px solid var(--border)' : 'none',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'oklch(0.5 0 0 / 3%)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td className="px-5 py-3.5">
                         <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-                          {cc.contact?.name || 'Unknown'}
+                          {name}
                         </p>
                       </td>
                       <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                        {cc.contact?.phoneNumber || '—'}
+                        {phone}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                           style={{ background: cfg.bg, color: cfg.text }}
                         >
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.pulse ? 'animate-pulse' : ''}`}
+                            style={{ background: cfg.dot }}
+                          />
                           {cfg.label}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                        {cc.attempts}
+                        {attempts}
                       </td>
                     </tr>
                   )
@@ -472,11 +542,12 @@ export default function CampaignDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {campaign.calls?.map((call: any, idx: number) => {
-                  const cfg = callStatusConfig[call.status] || callStatusConfig.INITIATED
+                {campaign.calls?.map((call: Record<string, unknown>, idx: number) => {
+                  const status = call.status as string
+                  const cfg = callStatusConfig[status] || callStatusConfig.INITIATED
                   return (
                     <tr
-                      key={call.id}
+                      key={call.id as string}
                       className="transition-colors duration-150 cursor-pointer"
                       style={{
                         borderBottom: idx < campaign.calls.length - 1 ? '1px solid var(--border)' : 'none',
@@ -493,11 +564,11 @@ export default function CampaignDetailPage() {
                         <div className="flex items-center gap-2">
                           <div>
                             <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
-                              {call.contact?.name || call.phoneNumber}
+                              {(call.contact as Record<string, unknown>)?.name as string || call.phoneNumber as string}
                             </p>
-                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.phoneNumber}</p>
+                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.phoneNumber as string}</p>
                           </div>
-                          {call.transcript && (
+                          {!!call.transcript && (
                             <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-40" style={{ color: 'var(--muted-foreground)' }} />
                           )}
                         </div>
@@ -512,13 +583,13 @@ export default function CampaignDetailPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDuration(call.duration)}
+                        {formatDuration(call.duration as number)}
                       </td>
                       <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                        {call.cost ? formatCurrency(call.cost) : '—'}
+                        {call.cost ? formatCurrency(call.cost as number) : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDate(call.startedAt)}
+                        {formatDate(call.startedAt as string)}
                       </td>
                     </tr>
                   )
@@ -529,7 +600,7 @@ export default function CampaignDetailPage() {
         )}
       </div>
 
-      <TranscriptModal call={selectedCall} onClose={() => setSelectedCall(null)} />
+      <TranscriptModal call={selectedCall as Parameters<typeof TranscriptModal>[0]['call']} onClose={() => setSelectedCall(null)} />
     </div>
   )
 }

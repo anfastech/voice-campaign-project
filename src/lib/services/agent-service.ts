@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getProvider } from '@/lib/providers'
 import type { AgentConfig } from '@/lib/providers/types'
 import type { VoiceProvider } from '@prisma/client'
+import { z } from 'zod'
+import { validateWebhookUrl } from '@/lib/utils/validate-webhook-url'
 
 export async function listAgents() {
   const agents = await prisma.agent.findMany({
@@ -74,6 +77,7 @@ export async function getAgent(id: string) {
         take: 20,
         include: { contact: { select: { name: true, phoneNumber: true } } },
       },
+      tools: { orderBy: { createdAt: 'asc' } },
     },
   })
 
@@ -103,6 +107,7 @@ export async function updateAgent(id: string, data: Record<string, unknown>) {
       }
     }
 
+    // If useKnowledgeBase changed, force full KB sync on next syncAgent call
     if (Object.keys(changedConfig).length > 0) {
       try {
         const provider = getProvider(agent.provider)
@@ -140,34 +145,53 @@ export async function deleteAgent(id: string) {
 }
 
 export async function syncAgent(id: string) {
-  const agent = await prisma.agent.findUnique({ where: { id } })
+  const agent = await prisma.agent.findUnique({
+    where: { id },
+    include: { tools: { where: { isActive: true } } },
+  })
   if (!agent) throw new Error('Agent not found')
+
+  // Build knowledge_base config
+  let kbDocs: Array<{ type: 'id'; id: string }> = []
+  if (agent.useKnowledgeBase) {
+    const docs = await prisma.knowledgeBaseDocument.findMany({
+      where: { userId: agent.userId, elevenLabsDocId: { not: null } },
+      select: { elevenLabsDocId: true },
+    })
+    kbDocs = docs
+      .filter((d) => d.elevenLabsDocId != null)
+      .map((d) => ({ type: 'id' as const, id: d.elevenLabsDocId! }))
+  }
+
+  // Build tools config
+  const toolsConfig = agent.tools.map((tool) => ({
+    type: 'webhook' as const,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters as Record<string, unknown>,
+    url: tool.webhookUrl,
+  }))
+
+  const agentConfig: AgentConfig = {
+    name: agent.name,
+    systemPrompt: agent.systemPrompt,
+    firstMessage: agent.firstMessage || undefined,
+    voice: agent.voice,
+    language: agent.language,
+    maxDuration: agent.maxDuration,
+    knowledge_base: kbDocs.length > 0 ? kbDocs : undefined,
+    tools: toolsConfig.length > 0 ? toolsConfig : undefined,
+  }
 
   const provider = getProvider(agent.provider)
 
   if (agent.elevenLabsAgentId && provider.updateAgent) {
-    // Already synced — push current state
-    await provider.updateAgent(agent.elevenLabsAgentId, {
-      name: agent.name,
-      systemPrompt: agent.systemPrompt,
-      firstMessage: agent.firstMessage || undefined,
-      voice: agent.voice,
-      language: agent.language,
-      maxDuration: agent.maxDuration,
-    })
+    await provider.updateAgent(agent.elevenLabsAgentId, agentConfig)
     return { status: 'updated', providerAgentId: agent.elevenLabsAgentId }
   }
 
   if (provider.createAgent) {
-    // Not yet synced — create on provider side
-    const { providerAgentId } = await provider.createAgent({
-      name: agent.name,
-      systemPrompt: agent.systemPrompt,
-      firstMessage: agent.firstMessage || undefined,
-      voice: agent.voice,
-      language: agent.language,
-      maxDuration: agent.maxDuration,
-    })
+    const { providerAgentId } = await provider.createAgent(agentConfig)
     await prisma.agent.update({
       where: { id },
       data: { elevenLabsAgentId: providerAgentId },
@@ -177,6 +201,73 @@ export async function syncAgent(id: string) {
 
   throw new Error('Provider does not support agent lifecycle')
 }
+
+// ---------------------------------------------------------------------------
+// Agent Tool CRUD
+// ---------------------------------------------------------------------------
+
+const toolParametersSchema = z.object({
+  type: z.literal('object'),
+  properties: z.record(z.string(), z.unknown()),
+})
+
+export async function listAgentTools(agentId: string) {
+  return prisma.agentTool.findMany({
+    where: { agentId },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
+export async function createAgentTool(agentId: string, data: {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+  webhookUrl: string
+}) {
+  const urlValidation = validateWebhookUrl(data.webhookUrl)
+  if (!urlValidation.valid) throw new Error(urlValidation.error)
+
+  const paramsResult = toolParametersSchema.safeParse(data.parameters)
+  if (!paramsResult.success) {
+    throw new Error('parameters must be a JSON Schema object with type "object" and properties')
+  }
+
+  return prisma.agentTool.create({ data: { agentId, ...data, parameters: data.parameters as Prisma.InputJsonValue } })
+}
+
+export async function updateAgentTool(toolId: string, data: Partial<{
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+  webhookUrl: string
+  isActive: boolean
+}>) {
+  if (data.webhookUrl !== undefined) {
+    const urlValidation = validateWebhookUrl(data.webhookUrl)
+    if (!urlValidation.valid) throw new Error(urlValidation.error)
+  }
+
+  if (data.parameters !== undefined) {
+    const paramsResult = toolParametersSchema.safeParse(data.parameters)
+    if (!paramsResult.success) {
+      throw new Error('parameters must be a JSON Schema object with type "object" and properties')
+    }
+  }
+
+  const { parameters, ...rest } = data
+  return prisma.agentTool.update({
+    where: { id: toolId },
+    data: { ...rest, ...(parameters !== undefined ? { parameters: parameters as Prisma.InputJsonValue } : {}) },
+  })
+}
+
+export async function deleteAgentTool(toolId: string) {
+  await prisma.agentTool.delete({ where: { id: toolId } })
+}
+
+// ---------------------------------------------------------------------------
+// AI Agent generation
+// ---------------------------------------------------------------------------
 
 const GENERATE_SYSTEM_PROMPT = `You are an expert voice AI agent configurator. Given a description of what a voice agent should do, you generate the perfect configuration.
 

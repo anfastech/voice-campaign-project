@@ -88,6 +88,7 @@ export async function updateContact(id: string, data: Record<string, unknown>) {
 export async function deleteContact(id: string) {
   await prisma.$transaction([
     prisma.campaignContact.deleteMany({ where: { contactId: id } }),
+    prisma.call.deleteMany({ where: { contactId: id } }),
     prisma.contact.delete({ where: { id } }),
   ])
 }

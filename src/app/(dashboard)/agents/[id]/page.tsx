@@ -3,11 +3,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useState } from 'react'
 import {
   ArrowLeft, Bot, Mic2, Phone, Thermometer, Clock, Globe,
   Radio, Trash2, Sparkles, MessageSquare, Link2, Link2Off, RefreshCw,
+  BookOpen, Wrench, Plus, Loader2, AlertCircle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { PROVIDER_META } from '@/lib/providers/types'
+
+type AgentTool = {
+  id: string
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+  webhookUrl: string
+  isActive: boolean
+  createdAt: string
+}
 
 const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   COMPLETED:   { label: 'Completed',   color: 'oklch(0.45 0.215 163)', bg: 'oklch(0.55 0.215 163 / 10%)' },
@@ -32,11 +44,22 @@ function formatDate(d?: string | Date | null) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+const DEFAULT_PARAMS = JSON.stringify({ type: 'object', properties: {} }, null, 2)
+
 export default function AgentDetailPage() {
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
   const queryClient = useQueryClient()
+
+  const [toolFormOpen, setToolFormOpen] = useState(false)
+  const [toolForm, setToolForm] = useState({
+    name: '',
+    description: '',
+    webhookUrl: '',
+    parameters: DEFAULT_PARAMS,
+  })
+  const [toolError, setToolError] = useState<string | null>(null)
 
   const { data: agent, isLoading } = useQuery({
     queryKey: ['agent', id],
@@ -58,12 +81,59 @@ export default function AgentDetailPage() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/agents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent', id] })
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => fetch(`/api/agents/${id}`, { method: 'DELETE' }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] })
       router.push('/agents')
     },
+  })
+
+  const createToolMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/agents/${id}/tools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error || 'Failed to create tool')
+        return r.json()
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent', id] })
+      setToolForm({ name: '', description: '', webhookUrl: '', parameters: DEFAULT_PARAMS })
+      setToolFormOpen(false)
+      setToolError(null)
+    },
+    onError: (err: Error) => setToolError(err.message),
+  })
+
+  const deleteToolMutation = useMutation({
+    mutationFn: (toolId: string) =>
+      fetch(`/api/agents/${id}/tools/${toolId}`, { method: 'DELETE' }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
+  })
+
+  const toggleToolMutation = useMutation({
+    mutationFn: ({ toolId, isActive }: { toolId: string; isActive: boolean }) =>
+      fetch(`/api/agents/${id}/tools/${toolId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   })
 
   if (isLoading) {
@@ -99,6 +169,24 @@ export default function AgentDetailPage() {
   const a = agent as any
   const provider = a.provider || 'ELEVENLABS'
   const meta = PROVIDER_META[provider] || PROVIDER_META.ELEVENLABS
+  const tools: AgentTool[] = a.tools || []
+
+  const handleAddTool = () => {
+    setToolError(null)
+    let parsedParams: Record<string, unknown>
+    try {
+      parsedParams = JSON.parse(toolForm.parameters)
+    } catch {
+      setToolError('Parameters must be valid JSON')
+      return
+    }
+    createToolMutation.mutate({
+      name: toolForm.name,
+      description: toolForm.description,
+      webhookUrl: toolForm.webhookUrl,
+      parameters: parsedParams,
+    })
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -211,21 +299,27 @@ export default function AgentDetailPage() {
               </p>
             )}
           </div>
-          {!a.elevenLabsAgentId && (
-            <button
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
-              style={{
-                background: 'oklch(0.62 0.18 68 / 15%)',
-                border: '1px solid oklch(0.62 0.18 68 / 30%)',
-                color: 'oklch(0.52 0.18 68)',
-              }}
-            >
-              <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? 'Syncing…' : 'Sync to ElevenLabs'}
-            </button>
-          )}
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+            style={
+              a.elevenLabsAgentId
+                ? {
+                    background: 'oklch(0.45 0.215 163 / 10%)',
+                    border: '1px solid oklch(0.45 0.215 163 / 25%)',
+                    color: 'oklch(0.45 0.215 163)',
+                  }
+                : {
+                    background: 'oklch(0.62 0.18 68 / 15%)',
+                    border: '1px solid oklch(0.62 0.18 68 / 30%)',
+                    color: 'oklch(0.52 0.18 68)',
+                  }
+            }
+          >
+            <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? 'Syncing…' : a.elevenLabsAgentId ? 'Re-sync' : 'Sync to ElevenLabs'}
+          </button>
         </div>
 
         {a.description && (
@@ -274,6 +368,233 @@ export default function AgentDetailPage() {
         </div>
       </div>
 
+      {/* Knowledge Base Toggle */}
+      <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'oklch(0.6 0.19 220 / 12%)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
+            >
+              <BookOpen className="w-3.5 h-3.5" style={{ color: 'oklch(0.6 0.19 220)' }} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Knowledge Base</h3>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                Include your KB documents in this agent&apos;s ElevenLabs config
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => updateMutation.mutate({ useKnowledgeBase: !a.useKnowledgeBase })}
+            disabled={updateMutation.isPending}
+            className="relative w-11 h-6 rounded-full transition-all duration-200 focus:outline-none"
+            style={{
+              background: a.useKnowledgeBase ? 'oklch(0.55 0.215 163)' : 'var(--muted)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all duration-200"
+              style={{
+                background: 'white',
+                transform: a.useKnowledgeBase ? 'translateX(20px)' : 'translateX(0)',
+                boxShadow: '0 1px 3px oklch(0 0 0 / 20%)',
+              }}
+            />
+          </button>
+        </div>
+        {a.useKnowledgeBase && (
+          <p className="text-xs mt-3" style={{ color: 'oklch(0.45 0.215 163)' }}>
+            Enabled — sync this agent to push KB doc IDs to ElevenLabs.{' '}
+            <Link href="/knowledge-base" className="underline hover:opacity-80">
+              Manage documents →
+            </Link>
+          </p>
+        )}
+      </div>
+
+      {/* Agent Tools */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <div
+          className="px-5 py-4 flex items-center justify-between"
+          style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Wrench className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Custom Tools</h3>
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+              style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
+            >
+              {tools.length}
+            </span>
+          </div>
+          <button
+            onClick={() => { setToolFormOpen((v) => !v); setToolError(null) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          >
+            {toolFormOpen ? <ChevronUp className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+            {toolFormOpen ? 'Close' : 'Add Tool'}
+          </button>
+        </div>
+
+        {/* Add tool form */}
+        {toolFormOpen && (
+          <div
+            className="px-5 py-4 space-y-3"
+            style={{ background: 'oklch(0.49 0.263 281 / 3%)', borderBottom: '1px solid var(--border)' }}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Name (snake_case)
+                </label>
+                <input
+                  type="text"
+                  placeholder="get_pricing"
+                  value={toolForm.name}
+                  onChange={(e) => setToolForm((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Webhook URL (https://)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://yoursite.com/webhook"
+                  value={toolForm.webhookUrl}
+                  onChange={(e) => setToolForm((p) => ({ ...p, webhookUrl: e.target.value }))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                Description
+              </label>
+              <input
+                type="text"
+                placeholder="What does this tool do?"
+                value={toolForm.description}
+                onChange={(e) => setToolForm((p) => ({ ...p, description: e.target.value }))}
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                Parameters (JSON Schema)
+              </label>
+              <textarea
+                rows={4}
+                value={toolForm.parameters}
+                onChange={(e) => setToolForm((p) => ({ ...p, parameters: e.target.value }))}
+                className="w-full rounded-xl px-3 py-2 text-xs font-mono outline-none resize-none"
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+            {toolError && (
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: 'oklch(0.52 0.245 15)' }}>
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {toolError}
+              </div>
+            )}
+            <button
+              onClick={handleAddTool}
+              disabled={createToolMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 disabled:opacity-60"
+              style={{
+                background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
+                boxShadow: '0 4px 12px oklch(0.49 0.263 281 / 25%)',
+              }}
+            >
+              {createToolMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              {createToolMutation.isPending ? 'Adding…' : 'Add Tool'}
+            </button>
+          </div>
+        )}
+
+        {/* Tool list */}
+        <div style={{ background: 'var(--card)' }}>
+          {tools.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <Wrench className="w-7 h-7 mx-auto mb-2 opacity-20" style={{ color: 'var(--foreground)' }} />
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No custom tools yet.</p>
+            </div>
+          ) : (
+            tools.map((tool, idx) => (
+              <div
+                key={tool.id}
+                className="flex items-start gap-3 px-5 py-3.5"
+                style={{ borderBottom: idx < tools.length - 1 ? '1px solid var(--border)' : 'none' }}
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                >
+                  <Wrench className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium font-mono" style={{ color: 'var(--foreground)' }}>
+                      {tool.name}
+                    </p>
+                    {!tool.isActive && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-md"
+                        style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                      >
+                        disabled
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                    {tool.description}
+                  </p>
+                  <p className="text-[10px] mt-0.5 font-mono truncate" style={{ color: 'var(--muted-foreground)' }}>
+                    {tool.webhookUrl}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => toggleToolMutation.mutate({ toolId: tool.id, isActive: !tool.isActive })}
+                    className="text-[10px] px-2 py-1 rounded-lg font-medium transition-all duration-150 hover:scale-105"
+                    style={
+                      tool.isActive
+                        ? { background: 'oklch(0.55 0.215 163 / 10%)', color: 'oklch(0.45 0.215 163)', border: '1px solid oklch(0.55 0.215 163 / 20%)' }
+                        : { background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)' }
+                    }
+                  >
+                    {tool.isActive ? 'Active' : 'Inactive'}
+                  </button>
+                  <button
+                    onClick={() => deleteToolMutation.mutate(tool.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105"
+                    style={{
+                      background: 'oklch(0.59 0.245 15 / 8%)',
+                      border: '1px solid oklch(0.59 0.245 15 / 20%)',
+                      color: 'oklch(0.59 0.245 15)',
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Recent Calls */}
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <div
@@ -314,17 +635,17 @@ export default function AgentDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {(a.calls || []).map((call: any) => {
-                  const sc = CALL_STATUS_CONFIG[call.status] || CALL_STATUS_CONFIG.CANCELLED
+                {(a.calls || []).map((call: Record<string, unknown>) => {
+                  const sc = CALL_STATUS_CONFIG[call.status as string] || CALL_STATUS_CONFIG.CANCELLED
                   return (
-                    <tr key={call.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr key={call.id as string} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="px-5 py-3">
                         <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-                          {call.contact?.name || call.phoneNumber}
+                          {(call.contact as Record<string, unknown>)?.name as string || call.phoneNumber as string}
                         </p>
-                        {call.contact?.name && (
+                        {!!(call.contact as Record<string, unknown>)?.name && (
                           <p className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
-                            {call.phoneNumber}
+                            {call.phoneNumber as string}
                           </p>
                         )}
                       </td>
@@ -337,10 +658,10 @@ export default function AgentDetailPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDuration(call.duration)}
+                        {formatDuration(call.duration as number)}
                       </td>
                       <td className="px-5 py-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDate(call.startedAt)}
+                        {formatDate(call.startedAt as string)}
                       </td>
                     </tr>
                   )

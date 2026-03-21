@@ -18,11 +18,25 @@ export async function applyCallOutcome(params: {
   endedAt?: Date | null
   answeredAt?: Date | null
   errorMessage?: string | null
+  recordingAvailable?: boolean
 }) {
   const {
     callId, campaignId, contactId, newStatus,
-    duration, cost, transcript, summary, endedAt, answeredAt, errorMessage,
+    duration, cost, transcript, summary, endedAt, answeredAt, errorMessage, recordingAvailable,
   } = params
+
+  // Idempotency guard — prevents double-incrementing campaign stats when
+  // both webhook and polling fire for the same call
+  const terminalStatuses = ['COMPLETED', 'FAILED', 'NO_ANSWER'] as const
+  if ((terminalStatuses as readonly string[]).includes(newStatus)) {
+    const existing = await prisma.call.findUnique({
+      where: { id: callId },
+      select: { status: true },
+    })
+    if (existing && (terminalStatuses as readonly string[]).includes(existing.status)) {
+      return
+    }
+  }
 
   // Update the Call record
   await prisma.call.update({
@@ -36,6 +50,7 @@ export async function applyCallOutcome(params: {
       ...(endedAt != null ? { endedAt } : {}),
       ...(answeredAt != null ? { answeredAt } : {}),
       ...(errorMessage != null ? { errorMessage } : {}),
+      ...(recordingAvailable === true ? { recordingAvailable: true } : {}),
     },
   })
 
@@ -132,6 +147,7 @@ export async function processCallEvent(event: {
       const transcript = (data?.transcript as string) ?? null
       const summary = (data?.summary as string) ?? null
       const callStatus = isSuccess ? 'COMPLETED' : isNoAnswer ? 'NO_ANSWER' : 'FAILED'
+      const hasAudio = data?.has_audio === true
 
       await applyCallOutcome({
         callId: call.id,
@@ -143,6 +159,7 @@ export async function processCallEvent(event: {
         transcript,
         summary,
         endedAt: new Date(),
+        recordingAvailable: hasAudio,
       })
 
       if (callStatus === 'COMPLETED' && transcript && !summary) {

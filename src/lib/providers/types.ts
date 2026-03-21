@@ -5,6 +5,14 @@ export interface AgentConfig {
   voice?: string
   language?: string
   maxDuration?: number
+  knowledge_base?: Array<{ type: 'id'; id: string }>
+  tools?: Array<{
+    type: 'webhook'
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+    url: string
+  }>
 }
 
 export interface VoiceCallConfig {
@@ -36,6 +44,7 @@ export interface VoiceCallDetails {
   recordingUrl?: string
   endedAt?: string
   endReason?: string
+  hasAudio?: boolean
 }
 
 export interface VoiceProviderService {

@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { formatDate, formatDuration, formatCurrency } from '@/lib/utils'
+import { Download, Volume2 } from 'lucide-react'
 
 interface Call {
   id: string
@@ -17,6 +18,8 @@ interface Call {
   transcript?: string | null
   summary?: string | null
   startedAt: string
+  recordingAvailable?: boolean
+  elevenLabsCallId?: string | null
   contact?: { name?: string | null } | null
   agent?: { name: string } | null
   campaign?: { name: string } | null
@@ -39,6 +42,7 @@ export function TranscriptModal({ call, onClose }: TranscriptModalProps) {
   if (!call) return null
 
   const statusCfg = statusConfig[call.status] || statusConfig.INITIATED
+  const hasRecording = call.recordingAvailable && call.elevenLabsCallId
 
   return (
     <Dialog open={!!call} onOpenChange={onClose}>
@@ -81,6 +85,36 @@ export function TranscriptModal({ call, onClose }: TranscriptModalProps) {
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Started</p>
             <p className="font-medium" style={{ color: 'var(--foreground)' }}>{formatDate(call.startedAt)}</p>
           </div>
+
+          {/* Recording player */}
+          {hasRecording && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Volume2 className="w-3.5 h-3.5" style={{ color: 'oklch(0.55 0.215 163)' }} />
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Recording</p>
+              </div>
+              <div
+                className="rounded-xl p-3 space-y-2"
+                style={{ background: 'oklch(0.55 0.215 163 / 6%)', border: '1px solid oklch(0.55 0.215 163 / 20%)' }}
+              >
+                <audio
+                  controls
+                  className="w-full"
+                  src={`/api/calls/${call.id}/recording`}
+                  style={{ height: '36px' }}
+                />
+                <a
+                  href={`/api/calls/${call.id}/recording`}
+                  download={`recording-${call.id}.mp3`}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:opacity-80"
+                  style={{ color: 'oklch(0.45 0.215 163)' }}
+                >
+                  <Download className="w-3 h-3" />
+                  Download recording
+                </a>
+              </div>
+            </div>
+          )}
 
           {call.summary && (
             <div>

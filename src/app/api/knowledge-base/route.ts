@@ -21,13 +21,14 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData()
       const name = (formData.get('name') as string)?.trim()
       const file = formData.get('file') as File | null
+      const folderName = (formData.get('folderName') as string | null) ?? undefined
 
       if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
       if (!file) return NextResponse.json({ error: 'file is required' }, { status: 400 })
 
       const buffer = Buffer.from(await file.arrayBuffer())
       try {
-        const doc = await addFileDocument(USER_ID, name, buffer, file.name)
+        const doc = await addFileDocument(USER_ID, name, buffer, file.name, folderName)
         return NextResponse.json({ document: doc }, { status: 201 })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'ElevenLabs sync failed'
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { type, name, content, url } = body
+    const { type, name, content, url, folderName } = body
 
     if (!type || !name) {
       return NextResponse.json({ error: 'type and name are required' }, { status: 400 })
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (type === 'TEXT') {
       if (!content) return NextResponse.json({ error: 'content is required for TEXT type' }, { status: 400 })
       try {
-        const doc = await addTextDocument(USER_ID, name, content)
+        const doc = await addTextDocument(USER_ID, name, content, folderName)
         return NextResponse.json({ document: doc }, { status: 201 })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'ElevenLabs sync failed'
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (type === 'URL') {
       if (!url) return NextResponse.json({ error: 'url is required for URL type' }, { status: 400 })
       try {
-        const doc = await addUrlDocument(USER_ID, name, url)
+        const doc = await addUrlDocument(USER_ID, name, url, folderName)
         return NextResponse.json({ document: doc }, { status: 201 })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'ElevenLabs sync failed'

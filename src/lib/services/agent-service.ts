@@ -6,6 +6,14 @@ import type { VoiceProvider } from '@prisma/client'
 import { z } from 'zod'
 import { validateWebhookUrl } from '@/lib/utils/validate-webhook-url'
 
+const KB_INSTRUCTION =
+  `\n\nYou have access to a knowledge base of documents. When answering questions about specific information, facts, or details related to this conversation, always consult the knowledge base first and base your answers on the information found there. Prefer knowledge base content over general knowledge for any topic covered in the documents.`
+
+function withKbInstruction(systemPrompt: string): string {
+  if (systemPrompt.toLowerCase().includes('knowledge base')) return systemPrompt
+  return systemPrompt + KB_INSTRUCTION
+}
+
 export async function listAgents() {
   const agents = await prisma.agent.findMany({
     where: { userId: 'default-user', isActive: true },
@@ -29,6 +37,7 @@ export async function createAgent(data: {
   temperature?: number
   maxDuration?: number
   providerConfig?: Record<string, unknown>
+  useKnowledgeBase?: boolean
 }) {
   const { providerConfig, ...rest } = data
 
@@ -40,17 +49,33 @@ export async function createAgent(data: {
     },
   })
 
+  // Build knowledge_base config if enabled
+  let kbDocs: Array<{ type: 'id'; id: string }> = []
+  if (agent.useKnowledgeBase) {
+    const docs = await prisma.knowledgeBaseDocument.findMany({
+      where: { userId: agent.userId, elevenLabsDocId: { not: null } },
+      select: { elevenLabsDocId: true },
+    })
+    kbDocs = docs
+      .filter((d) => d.elevenLabsDocId != null)
+      .map((d) => ({ type: 'id' as const, id: d.elevenLabsDocId! }))
+  }
+
   // Sync to ElevenLabs
   try {
     const provider = getProvider(agent.provider)
     if (provider.createAgent) {
+      const effectivePrompt = (agent.useKnowledgeBase && kbDocs.length > 0)
+        ? withKbInstruction(agent.systemPrompt)
+        : agent.systemPrompt
       const { providerAgentId } = await provider.createAgent({
         name: agent.name,
-        systemPrompt: agent.systemPrompt,
+        systemPrompt: effectivePrompt,
         firstMessage: agent.firstMessage || undefined,
         voice: agent.voice,
         language: agent.language,
         maxDuration: agent.maxDuration,
+        knowledge_base: kbDocs.length > 0 ? kbDocs : undefined,
       })
       await prisma.agent.update({
         where: { id: agent.id },
@@ -172,9 +197,13 @@ export async function syncAgent(id: string) {
     url: tool.webhookUrl,
   }))
 
+  const effectivePrompt = (agent.useKnowledgeBase && kbDocs.length > 0)
+    ? withKbInstruction(agent.systemPrompt)
+    : agent.systemPrompt
+
   const agentConfig: AgentConfig = {
     name: agent.name,
-    systemPrompt: agent.systemPrompt,
+    systemPrompt: effectivePrompt,
     firstMessage: agent.firstMessage || undefined,
     voice: agent.voice,
     language: agent.language,
@@ -186,8 +215,15 @@ export async function syncAgent(id: string) {
   const provider = getProvider(agent.provider)
 
   if (agent.elevenLabsAgentId && provider.updateAgent) {
-    await provider.updateAgent(agent.elevenLabsAgentId, agentConfig)
-    return { status: 'updated', providerAgentId: agent.elevenLabsAgentId }
+    try {
+      await provider.updateAgent(agent.elevenLabsAgentId, agentConfig)
+      return { status: 'updated', providerAgentId: agent.elevenLabsAgentId }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!msg.includes('404') && !msg.toLowerCase().includes('not found')) throw err
+      // Stale agent ID — clear it and fall through to create
+      await prisma.agent.update({ where: { id }, data: { elevenLabsAgentId: null } })
+    }
   }
 
   if (provider.createAgent) {
@@ -284,7 +320,7 @@ The JSON must have these exact fields:
   "temperature": 0.7
 }`
 
-export async function generateAgent(description: string) {
+export async function generateAgent(description: string, useKnowledgeBase?: boolean) {
   if (!description?.trim()) {
     throw new Error('Description is required')
   }
@@ -293,6 +329,10 @@ export async function generateAgent(description: string) {
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY not configured')
   }
+
+  const userMessage = useKnowledgeBase
+    ? `Generate a voice agent configuration for this use case:\n\n${description}\n\nIMPORTANT: This agent has access to a knowledge base of documents. The systemPrompt MUST instruct the agent to consult the knowledge base when answering questions about specific information, facts, or details. Reference knowledge base retrieval explicitly in the system prompt.`
+    : `Generate a voice agent configuration for this use case:\n\n${description}`
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -308,7 +348,7 @@ export async function generateAgent(description: string) {
       messages: [
         {
           role: 'user',
-          content: `Generate a voice agent configuration for this use case:\n\n${description}`,
+          content: userMessage,
         },
       ],
     }),

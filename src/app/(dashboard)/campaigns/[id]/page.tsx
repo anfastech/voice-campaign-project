@@ -41,6 +41,7 @@ export default function CampaignDetailPage() {
   const id = params.id as string
   const liveStatusTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const initialSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', id],
@@ -78,10 +79,13 @@ export default function CampaignDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
   })
 
-  // Full sync — manual only
+  // Full sync — manual and auto-triggered
   const syncMutation = useMutation({
     mutationFn: () => fetch(`/api/campaigns/${id}/sync`, { method: 'POST' }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaign', id] })
+      refetchLiveStatus()
+    },
   })
 
   const [selectedCall, setSelectedCall] = useState<Record<string, unknown> | null>(null)
@@ -103,12 +107,22 @@ export default function CampaignDetailPage() {
       clearInterval(liveStatusTimerRef.current)
       liveStatusTimerRef.current = null
     }
+    if (autoSyncTimerRef.current) {
+      clearInterval(autoSyncTimerRef.current)
+      autoSyncTimerRef.current = null
+    }
 
     if (isRunning) {
       refetchLiveStatus()
+      // Immediate sync on mount/re-mount so navigating to a running campaign shows current statuses
+      syncMutation.mutate()
       liveStatusTimerRef.current = setInterval(() => {
         refetchLiveStatus()
       }, 10_000)
+      // Auto-sync: poll ElevenLabs every 30s while calls may be active
+      autoSyncTimerRef.current = setInterval(() => {
+        syncMutation.mutate()
+      }, 30_000)
     }
 
     if (isTerminal) {
@@ -120,6 +134,10 @@ export default function CampaignDetailPage() {
       if (liveStatusTimerRef.current) {
         clearInterval(liveStatusTimerRef.current)
         liveStatusTimerRef.current = null
+      }
+      if (autoSyncTimerRef.current) {
+        clearInterval(autoSyncTimerRef.current)
+        autoSyncTimerRef.current = null
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

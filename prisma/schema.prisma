@@ -208,9 +208,11 @@ model KnowledgeBaseDocument {
   content         String?
   url             String?
   fileName        String?
-  elevenLabsDocId String?
-  syncStatus      String    @default("PENDING")
-  syncError       String?
+  elevenLabsDocId    String?
+  folderName         String?
+  folderElevenLabsId String?
+  syncStatus         String    @default("PENDING")
+  syncError          String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)

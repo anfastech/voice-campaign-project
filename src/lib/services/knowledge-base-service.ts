@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { elevenLabsProvider } from '@/lib/providers/elevenlabs'
+import { elevenLabsMcpProvider as elevenLabsProvider } from '@/lib/providers/elevenlabs-mcp'
 
 export async function listDocuments(userId: string) {
   return prisma.knowledgeBaseDocument.findMany({
@@ -8,16 +8,30 @@ export async function listDocuments(userId: string) {
   })
 }
 
-export async function addTextDocument(userId: string, name: string, content: string) {
+async function getOrCreateFolder(userId: string, folderName: string): Promise<string> {
+  const existing = await prisma.knowledgeBaseDocument.findFirst({
+    where: { userId, folderName, folderElevenLabsId: { not: null } },
+    select: { folderElevenLabsId: true },
+  })
+  if (existing?.folderElevenLabsId) return existing.folderElevenLabsId
+  return elevenLabsProvider.createKBFolder(folderName)
+}
+
+export async function addTextDocument(userId: string, name: string, content: string, folderName?: string) {
   if (!name?.trim()) throw new Error('Name is required')
   if (!content?.trim()) throw new Error('Content is required')
 
+  let folderElevenLabsId: string | undefined
+  if (folderName?.trim()) {
+    folderElevenLabsId = await getOrCreateFolder(userId, folderName.trim())
+  }
+
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'TEXT', content, syncStatus: 'PENDING' },
+    data: { userId, name, type: 'TEXT', content, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
   })
 
   try {
-    const elevenLabsDocId = await elevenLabsProvider.uploadKBText(name, content)
+    const elevenLabsDocId = await elevenLabsProvider.uploadKBText(name, content, folderElevenLabsId)
     return prisma.knowledgeBaseDocument.update({
       where: { id: doc.id },
       data: { elevenLabsDocId, syncStatus: 'SYNCED', syncError: null },
@@ -32,16 +46,21 @@ export async function addTextDocument(userId: string, name: string, content: str
   }
 }
 
-export async function addUrlDocument(userId: string, name: string, url: string) {
+export async function addUrlDocument(userId: string, name: string, url: string, folderName?: string) {
   if (!name?.trim()) throw new Error('Name is required')
   if (!url?.trim()) throw new Error('URL is required')
 
+  let folderElevenLabsId: string | undefined
+  if (folderName?.trim()) {
+    folderElevenLabsId = await getOrCreateFolder(userId, folderName.trim())
+  }
+
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'URL', url, syncStatus: 'PENDING' },
+    data: { userId, name, type: 'URL', url, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
   })
 
   try {
-    const elevenLabsDocId = await elevenLabsProvider.uploadKBUrl(name, url)
+    const elevenLabsDocId = await elevenLabsProvider.uploadKBUrl(name, url, folderElevenLabsId)
     return prisma.knowledgeBaseDocument.update({
       where: { id: doc.id },
       data: { elevenLabsDocId, syncStatus: 'SYNCED', syncError: null },
@@ -60,16 +79,22 @@ export async function addFileDocument(
   userId: string,
   name: string,
   fileBuffer: Buffer,
-  fileName: string
+  fileName: string,
+  folderName?: string
 ) {
   if (!name?.trim()) throw new Error('Name is required')
 
+  let folderElevenLabsId: string | undefined
+  if (folderName?.trim()) {
+    folderElevenLabsId = await getOrCreateFolder(userId, folderName.trim())
+  }
+
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'FILE', fileName, syncStatus: 'PENDING' },
+    data: { userId, name, type: 'FILE', fileName, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
   })
 
   try {
-    const elevenLabsDocId = await elevenLabsProvider.uploadKBFile(name, fileBuffer, fileName)
+    const elevenLabsDocId = await elevenLabsProvider.uploadKBFile(name, fileBuffer, fileName, folderElevenLabsId)
     return prisma.knowledgeBaseDocument.update({
       where: { id: doc.id },
       data: { elevenLabsDocId, syncStatus: 'SYNCED', syncError: null },
@@ -95,12 +120,13 @@ export async function retrySyncDocument(userId: string, id: string) {
 
   try {
     let elevenLabsDocId: string
+    const parentFolderId = doc.folderElevenLabsId ?? undefined
     if (doc.type === 'TEXT') {
       if (!doc.content) throw new Error('Document has no content')
-      elevenLabsDocId = await elevenLabsProvider.uploadKBText(doc.name, doc.content)
+      elevenLabsDocId = await elevenLabsProvider.uploadKBText(doc.name, doc.content, parentFolderId)
     } else if (doc.type === 'URL') {
       if (!doc.url) throw new Error('Document has no URL')
-      elevenLabsDocId = await elevenLabsProvider.uploadKBUrl(doc.name, doc.url)
+      elevenLabsDocId = await elevenLabsProvider.uploadKBUrl(doc.name, doc.url, parentFolderId)
     } else {
       throw new Error('File re-upload is not supported; please delete and re-add the document')
     }

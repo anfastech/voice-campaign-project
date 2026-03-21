@@ -4,6 +4,27 @@ import { getElevenLabsMcpClient } from '../mcp/elevenlabs-client'
 // REST fallback for operations not supported by MCP
 const BASE_URL = 'https://api.elevenlabs.io/v1'
 
+function getMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    pdf:      'application/pdf',
+    epub:     'application/epub+zip',
+    docx:     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt:      'text/plain',
+    html:     'text/html',
+    htm:      'text/html',
+    md:       'text/markdown',
+    markdown: 'text/markdown',
+  }
+  return map[ext] ?? 'application/octet-stream'
+}
+
+function getWebhookUrl(): string | null {
+  const base = process.env.APP_URL || process.env.NEXTAUTH_URL
+  if (!base) return null
+  return `${base.replace(/\/$/, '')}/api/webhooks/elevenlabs`
+}
+
 async function elFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -124,11 +145,12 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
   async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
     const conversationConfig: Record<string, unknown> = {}
 
-    if (config.systemPrompt || config.firstMessage || config.language) {
+    if (config.systemPrompt || config.firstMessage || config.language || config.knowledge_base !== undefined) {
       conversationConfig.agent = {
         ...(config.systemPrompt ? { prompt: { prompt: config.systemPrompt } } : {}),
         ...(config.firstMessage ? { first_message: config.firstMessage } : {}),
         ...(config.language ? { language: config.language } : {}),
+        ...(config.knowledge_base !== undefined ? { knowledge_base: config.knowledge_base } : {}),
       }
     }
     if (config.voice) {
@@ -139,12 +161,17 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
       conversationConfig.conversation = { max_duration_seconds: config.maxDuration }
     }
 
+    const webhookUrl = getWebhookUrl()
+    const body: Record<string, unknown> = {
+      ...(Object.keys(conversationConfig).length > 0 ? { conversation_config: conversationConfig } : {}),
+      ...(config.name ? { name: config.name } : {}),
+      ...(config.tools !== undefined ? { tools: config.tools } : {}),
+      ...(webhookUrl ? { platform_settings: { webhook: { url: webhookUrl } } } : {}),
+    }
+
     await elFetch(`/convai/agents/${providerAgentId}`, {
       method: 'PATCH',
-      body: JSON.stringify({
-        conversation_config: conversationConfig,
-        ...(config.name ? { name: config.name } : {}),
-      }),
+      body: JSON.stringify(body),
     })
   }
 
@@ -259,6 +286,105 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
         .join('\n')
     } catch {
       return null
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Knowledge Base
+  // -------------------------------------------------------------------------
+
+  async createKBFolder(name: string): Promise<string> {
+    const data = await elFetch('/convai/knowledge-base/folder', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    })
+    return data.id as string
+  }
+
+  async uploadKBText(name: string, text: string, parentFolderId?: string): Promise<string> {
+    try {
+      const client = await getElevenLabsMcpClient()
+      const result = await client.callTool({
+        name: 'add_knowledge_base_document_from_text',
+        arguments: { name, text },
+      })
+      const data = parseJsonContent(result)
+      const docId = (data.id ?? data.document_id) as string
+      if (docId) return docId
+    } catch (err) {
+      console.warn('MCP uploadKBText failed, falling back to REST:', err instanceof Error ? err.message : err)
+    }
+
+    const data = await elFetch('/convai/knowledge-base/text', {
+      method: 'POST',
+      body: JSON.stringify({ name, text, ...(parentFolderId ? { parent_folder_id: parentFolderId } : {}) }),
+    })
+    return data.id as string
+  }
+
+  async uploadKBUrl(name: string, url: string, parentFolderId?: string): Promise<string> {
+    try {
+      const client = await getElevenLabsMcpClient()
+      const result = await client.callTool({
+        name: 'add_knowledge_base_document_from_url',
+        arguments: { name, url },
+      })
+      const data = parseJsonContent(result)
+      const docId = (data.id ?? data.document_id) as string
+      if (docId) return docId
+    } catch (err) {
+      console.warn('MCP uploadKBUrl failed, falling back to REST:', err instanceof Error ? err.message : err)
+    }
+
+    const data = await elFetch('/convai/knowledge-base/url', {
+      method: 'POST',
+      body: JSON.stringify({ name, url, ...(parentFolderId ? { parent_folder_id: parentFolderId } : {}) }),
+    })
+    return data.id as string
+  }
+
+  async uploadKBFile(name: string, fileBuffer: Buffer, fileName: string, parentFolderId?: string): Promise<string> {
+    // Binary data can't be JSON-serialised for MCP — REST only
+    const formData = new FormData()
+    const ab = fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength) as ArrayBuffer
+    const mimeType = getMimeType(fileName)
+    const blob = new Blob([ab], { type: mimeType })
+    formData.append('file', blob, fileName)
+    formData.append('name', name)
+    if (parentFolderId) formData.append('parent_folder_id', parentFolderId)
+
+    const res = await fetch(`${BASE_URL}/convai/knowledge-base/file`, {
+      method: 'POST',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+      body: formData,
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
+    }
+    const data = await res.json()
+    return data.id as string
+  }
+
+  async deleteKBDocument(documentId: string): Promise<void> {
+    try {
+      const client = await getElevenLabsMcpClient()
+      await client.callTool({
+        name: 'delete_knowledge_base_document',
+        arguments: { document_id: documentId },
+      })
+      return
+    } catch (err) {
+      console.warn('MCP deleteKBDocument failed, falling back to REST:', err instanceof Error ? err.message : err)
+    }
+
+    const res = await fetch(`${BASE_URL}/convai/knowledge-base/${documentId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
     }
   }
 }

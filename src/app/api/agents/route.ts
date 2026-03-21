@@ -13,6 +13,7 @@ const agentSchema = z.object({
   temperature: z.number().min(0).max(1).default(0.7),
   maxDuration: z.number().int().min(30).max(3600).default(300),
   providerConfig: z.record(z.string(), z.any()).optional(),
+  useKnowledgeBase: z.boolean().optional().default(false),
 })
 
 export async function GET() {

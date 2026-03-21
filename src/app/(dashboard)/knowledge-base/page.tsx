@@ -12,6 +12,7 @@ type KBDoc = {
   url?: string | null
   fileName?: string | null
   elevenLabsDocId?: string | null
+  folderName?: string | null
   syncStatus: string
   syncError?: string | null
   createdAt: string
@@ -55,21 +56,25 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
             <XCircle className="w-2.5 h-2.5" />
             Sync Failed
           </span>
-          <button
-            onClick={onRetry}
-            disabled={retrying}
-            title="Retry sync"
-            className="w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105 disabled:opacity-50"
-            style={{ background: 'oklch(0.6 0.19 220 / 10%)', border: '1px solid oklch(0.6 0.19 220 / 25%)', color: 'oklch(0.6 0.19 220)' }}
-          >
-            {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-          </button>
+          {doc.type !== 'FILE' && (
+            <button
+              onClick={onRetry}
+              disabled={retrying}
+              title="Retry sync"
+              className="w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105 disabled:opacity-50"
+              style={{ background: 'oklch(0.6 0.19 220 / 10%)', border: '1px solid oklch(0.6 0.19 220 / 25%)', color: 'oklch(0.6 0.19 220)' }}
+            >
+              {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            </button>
+          )}
         </div>
-        {doc.syncError && (
-          <p className="text-[10px] max-w-[220px] text-right leading-tight" style={{ color: 'oklch(0.52 0.245 15)' }}>
-            {doc.syncError}
-          </p>
-        )}
+        <p className="text-xs max-w-[220px] text-right leading-tight break-words" style={{ color: 'oklch(0.52 0.245 15)' }}>
+          {doc.syncError && doc.syncError !== 'File re-upload is not supported; please delete and re-add the document'
+            ? doc.syncError
+            : doc.type === 'FILE'
+              ? 'Delete and re-add this document to retry.'
+              : 'ElevenLabs sync failed. Check your API key or try again.'}
+        </p>
       </div>
     )
   }
@@ -84,15 +89,17 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
         <Clock className="w-2.5 h-2.5" />
         Pending
       </span>
-      <button
-        onClick={onRetry}
-        disabled={retrying}
-        title="Retry sync"
-        className="w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105 disabled:opacity-50"
-        style={{ background: 'oklch(0.6 0.19 220 / 10%)', border: '1px solid oklch(0.6 0.19 220 / 25%)', color: 'oklch(0.6 0.19 220)' }}
-      >
-        {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-      </button>
+      {doc.type !== 'FILE' && (
+        <button
+          onClick={onRetry}
+          disabled={retrying}
+          title="Retry sync"
+          className="w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105 disabled:opacity-50"
+          style={{ background: 'oklch(0.6 0.19 220 / 10%)', border: '1px solid oklch(0.6 0.19 220 / 25%)', color: 'oklch(0.6 0.19 220)' }}
+        >
+          {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+        </button>
+      )}
     </div>
   )
 }
@@ -100,9 +107,10 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
 export default function KnowledgeBasePage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'TEXT' | 'URL' | 'FILE'>('TEXT')
-  const [textForm, setTextForm] = useState({ name: '', content: '' })
-  const [urlForm, setUrlForm] = useState({ name: '', url: '' })
+  const [textForm, setTextForm] = useState({ name: '', content: '', folderName: '' })
+  const [urlForm, setUrlForm] = useState({ name: '', url: '', folderName: '' })
   const [fileName, setFileName] = useState('')
+  const [fileFolderName, setFileFolderName] = useState('')
   const [fileInput, setFileInput] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -128,9 +136,10 @@ export default function KnowledgeBasePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['knowledge-base'] })
-      setTextForm({ name: '', content: '' })
-      setUrlForm({ name: '', url: '' })
+      setTextForm({ name: '', content: '', folderName: '' })
+      setUrlForm({ name: '', url: '', folderName: '' })
       setFileName('')
+      setFileFolderName('')
       setFileInput(null)
       setError(null)
     },
@@ -156,13 +165,13 @@ export default function KnowledgeBasePage() {
         setError('Name and content are required')
         return
       }
-      createMutation.mutate({ type: 'TEXT', name: textForm.name, content: textForm.content })
+      createMutation.mutate({ type: 'TEXT', name: textForm.name, content: textForm.content, folderName: textForm.folderName || undefined })
     } else if (activeTab === 'URL') {
       if (!urlForm.name.trim() || !urlForm.url.trim()) {
         setError('Name and URL are required')
         return
       }
-      createMutation.mutate({ type: 'URL', name: urlForm.name, url: urlForm.url })
+      createMutation.mutate({ type: 'URL', name: urlForm.name, url: urlForm.url, folderName: urlForm.folderName || undefined })
     } else if (activeTab === 'FILE') {
       if (!fileInput || !fileName.trim()) {
         setError('Name and file are required')
@@ -171,6 +180,7 @@ export default function KnowledgeBasePage() {
       const fd = new FormData()
       fd.append('name', fileName)
       fd.append('file', fileInput)
+      if (fileFolderName.trim()) fd.append('folderName', fileFolderName.trim())
       createMutation.mutate(fd)
     }
   }
@@ -232,6 +242,14 @@ export default function KnowledgeBasePage() {
               className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
             />
+            <input
+              type="text"
+              placeholder="Folder (optional)"
+              value={textForm.folderName}
+              onChange={(e) => setTextForm((p) => ({ ...p, folderName: e.target.value }))}
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            />
             <textarea
               placeholder="Document content..."
               value={textForm.content}
@@ -254,6 +272,14 @@ export default function KnowledgeBasePage() {
               style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
             />
             <input
+              type="text"
+              placeholder="Folder (optional)"
+              value={urlForm.folderName}
+              onChange={(e) => setUrlForm((p) => ({ ...p, folderName: e.target.value }))}
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            />
+            <input
               type="url"
               placeholder="https://example.com/document"
               value={urlForm.url}
@@ -271,6 +297,14 @@ export default function KnowledgeBasePage() {
               placeholder="Document name"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            />
+            <input
+              type="text"
+              placeholder="Folder (optional)"
+              value={fileFolderName}
+              onChange={(e) => setFileFolderName(e.target.value)}
               className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
             />
@@ -348,26 +382,36 @@ export default function KnowledgeBasePage() {
               return (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-3 px-5 py-3.5"
+                  className="flex items-start gap-3 px-5 py-3.5"
                   style={{ borderBottom: idx < docs.length - 1 ? '1px solid var(--border)' : 'none' }}
                 >
                   <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                     style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
                   >
                     <Icon className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-                      {doc.name}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                        {doc.name}
+                      </p>
+                      {doc.folderName && (
+                        <span
+                          className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0"
+                          style={{ background: 'oklch(0.6 0.19 220 / 10%)', color: 'oklch(0.6 0.19 220)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
+                        >
+                          {doc.folderName}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
                       {doc.type === 'URL' && doc.url}
                       {doc.type === 'FILE' && doc.fileName}
                       {doc.type === 'TEXT' && `${doc.content?.slice(0, 60)}...`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
                     <SyncBadge
                       doc={doc}
                       onRetry={() => syncMutation.mutate(doc.id)}

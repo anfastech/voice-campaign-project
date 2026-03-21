@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Bot, Mic2, Globe, Thermometer, Clock, Sparkles,
-  Wand2, ChevronRight, RotateCcw,
+  Wand2, ChevronRight, RotateCcw, Database,
 } from 'lucide-react'
 import { PROVIDER_VOICES, PROVIDER_META } from '@/lib/providers/types'
 
@@ -38,6 +38,7 @@ interface AgentForm {
   language: string
   temperature: number
   maxDuration: number
+  useKnowledgeBase: boolean
 }
 
 const DEFAULT_FORM: AgentForm = {
@@ -49,6 +50,7 @@ const DEFAULT_FORM: AgentForm = {
   language: 'en',
   temperature: 0.7,
   maxDuration: 300,
+  useKnowledgeBase: false,
 }
 
 function inputStyle() {
@@ -68,6 +70,18 @@ export default function NewAgentPage() {
   const [generated, setGenerated] = useState(false)
   const [generateError, setGenerateError] = useState('')
 
+  const [kbDocCount, setKbDocCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/knowledge-base')
+      .then((r) => r.json())
+      .then((data) => {
+        const docs = Array.isArray(data) ? data : (data.documents ?? [])
+        setKbDocCount(docs.filter((d: { elevenLabsDocId?: string | null }) => d.elevenLabsDocId).length)
+      })
+      .catch(() => setKbDocCount(0))
+  }, [])
+
   const provider = 'ELEVENLABS' as const
   const voices = PROVIDER_VOICES.ELEVENLABS
   const providerMeta = PROVIDER_META.ELEVENLABS
@@ -80,7 +94,7 @@ export default function NewAgentPage() {
       const res = await fetch('/api/agents/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: aiPrompt }),
+        body: JSON.stringify({ description: aiPrompt, useKnowledgeBase: form.useKnowledgeBase }),
       })
       const data = await res.json()
       if (!res.ok || data.error) {
@@ -94,7 +108,8 @@ export default function NewAgentPage() {
         (v) => v.id.toLowerCase() === (data.voice || '').toLowerCase()
       ) || providerVoices[0]
 
-      setForm({
+      setForm((prev) => ({
+        ...prev,
         name: data.name || '',
         description: data.description || '',
         systemPrompt: data.systemPrompt || '',
@@ -103,7 +118,7 @@ export default function NewAgentPage() {
         language: data.language || 'en',
         temperature: typeof data.temperature === 'number' ? data.temperature : 0.7,
         maxDuration: 300,
-      })
+      }))
       setGenerated(true)
       setMode('manual')
     } catch {
@@ -241,6 +256,59 @@ export default function NewAgentPage() {
               style={inputStyle()}
             />
           </div>
+
+          {/* KB toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              <div>
+                <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
+                  Tailor for Knowledge Base
+                </p>
+                <p className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
+                  AI will include KB instructions in the system prompt
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, useKnowledgeBase: !form.useKnowledgeBase })}
+              className="relative w-11 h-6 rounded-full transition-all duration-200 flex-shrink-0"
+              style={{
+                background: form.useKnowledgeBase ? 'oklch(0.49 0.263 281)' : 'var(--muted)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <span
+                className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-200"
+                style={{ left: form.useKnowledgeBase ? '1.375rem' : '0.125rem' }}
+              />
+            </button>
+          </div>
+          {form.useKnowledgeBase && (
+            <div
+              className="rounded-xl px-3 py-2 text-xs"
+              style={{
+                background: 'oklch(0.49 0.263 281 / 8%)',
+                border: '1px solid oklch(0.49 0.263 281 / 20%)',
+              }}
+            >
+              {kbDocCount === null ? (
+                <span style={{ color: 'var(--muted-foreground)' }}>Loading documents…</span>
+              ) : kbDocCount > 0 ? (
+                <span style={{ color: 'oklch(0.49 0.263 281)' }}>
+                  {kbDocCount} document{kbDocCount !== 1 ? 's' : ''} will be included
+                </span>
+              ) : (
+                <span style={{ color: 'var(--muted-foreground)' }}>
+                  No synced documents yet —{' '}
+                  <a href="/knowledge-base" className="underline" style={{ color: 'oklch(0.49 0.263 281)' }}>
+                    add some in Knowledge Base
+                  </a>
+                </span>
+              )}
+            </div>
+          )}
 
           {generateError && (
             <p
@@ -481,6 +549,67 @@ export default function NewAgentPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Knowledge Base */}
+          <div
+            className="rounded-2xl p-5 space-y-4"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <SectionHeader icon={Database} title="Knowledge Base" />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                  Include knowledge base documents
+                </p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Agent will use synced documents to answer questions
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, useKnowledgeBase: !form.useKnowledgeBase })}
+                className="relative w-11 h-6 rounded-full transition-all duration-200 flex-shrink-0"
+                style={{
+                  background: form.useKnowledgeBase ? 'oklch(0.49 0.263 281)' : 'var(--muted)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <span
+                  className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-200"
+                  style={{ left: form.useKnowledgeBase ? '1.375rem' : '0.125rem' }}
+                />
+              </button>
+            </div>
+            {form.useKnowledgeBase && (
+              <div
+                className="rounded-xl px-3 py-2.5 text-xs"
+                style={{
+                  background: 'oklch(0.49 0.263 281 / 8%)',
+                  border: '1px solid oklch(0.49 0.263 281 / 20%)',
+                  color: 'var(--muted-foreground)',
+                }}
+              >
+                {kbDocCount === null ? (
+                  'Loading documents…'
+                ) : kbDocCount > 0 ? (
+                  <span style={{ color: 'oklch(0.49 0.263 281)' }}>
+                    {kbDocCount} document{kbDocCount !== 1 ? 's' : ''} will be included
+                  </span>
+                ) : (
+                  <>
+                    No synced documents yet —{' '}
+                    <a
+                      href="/knowledge-base"
+                      className="underline"
+                      style={{ color: 'oklch(0.49 0.263 281)' }}
+                    >
+                      add some in Knowledge Base
+                    </a>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {createAgent.isError && (

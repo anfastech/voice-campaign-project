@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Agent not answering from knowledge base
+
+- **Auto-inject KB instruction into system prompt** — when an agent has `useKnowledgeBase: true` and KB documents are linked, a standard knowledge base consultation instruction is automatically appended to the system prompt before it is sent to ElevenLabs (at create and sync time). The stored system prompt is unchanged — the instruction is injected only at the provider call level. Agents that already mention "knowledge base" in their prompt are not affected (deduplication check). (`src/lib/services/agent-service.ts`)
+
+### Fixed — "Calling..." badge stuck after call ends
+
+- **Periodic auto-sync added** — the campaign detail page now triggers an ElevenLabs status sync every 30 seconds while the campaign is RUNNING, so call statuses update even when the webhook doesn't fire. (`src/app/(dashboard)/campaigns/[id]/page.tsx`)
+- **Immediate sync on page load** — navigating to an already-running campaign now triggers an instant sync instead of waiting for the user to click Sync manually. (`src/app/(dashboard)/campaigns/[id]/page.tsx`)
+- **Live-status badges refresh immediately after sync** — previously, after clicking Sync, badges could take up to 10 seconds to update; now they refresh as soon as the sync completes. (`src/app/(dashboard)/campaigns/[id]/page.tsx`)
+
+### Fixed — PDF and file uploads to Knowledge Base
+
+- **Blob MIME type now set from file extension** — `uploadKBFile` in both `elevenlabs.ts` and `elevenlabs-mcp.ts` previously created a `Blob` without a `type`, causing ElevenLabs to receive an unknown Content-Type and reject the upload with 400 "invalid_file_type". The fix infers the correct MIME type from the file extension (pdf → `application/pdf`, docx → `application/vnd...docx`, etc.) and passes it to the Blob constructor. (`src/lib/providers/elevenlabs.ts`, `src/lib/providers/elevenlabs-mcp.ts`)
+
+### Changed — KB toggle in AI generation step
+
+- **AI agent generation now accepts a `useKnowledgeBase` flag** — when enabled, the generated `systemPrompt` is tailored to instruct the agent to consult the knowledge base for specific information. (`src/lib/services/agent-service.ts`, `src/app/api/agents/generate/route.ts`)
+- **Added KB toggle to the AI generation step in `/agents/new`** — users can enable "Tailor for Knowledge Base" before clicking Generate; shows synced doc count or a link to add documents. State is preserved when AI generation switches to manual mode. (`src/app/(dashboard)/agents/new/page.tsx`)
+
+### Added — Knowledge base selection during agent creation
+
+- **`useKnowledgeBase` accepted at agent creation** — `POST /api/agents` Zod schema now includes `useKnowledgeBase: z.boolean().optional().default(false)`. (`src/app/api/agents/route.ts`)
+- **KB docs included in initial ElevenLabs agent create** — `createAgent()` now fetches synced KB documents when `useKnowledgeBase=true` and passes them as `knowledge_base` to `provider.createAgent()`, mirroring the logic in `syncAgent()`. (`src/lib/services/agent-service.ts`)
+- **Knowledge Base section on agent creation form** — `/agents/new` manual mode now shows a "Knowledge Base" card with a toggle. When enabled, displays the count of synced documents ("N documents will be included") or a link to `/knowledge-base` if none are synced yet. (`src/app/(dashboard)/agents/new/page.tsx`)
+
+### Fixed — KB upload 404 errors (ElevenLabs API path change)
+
+- **Removed `/documents/` prefix from all Knowledge Base endpoints** — ElevenLabs changed their API paths. Updated `uploadKBText`, `uploadKBUrl`, `uploadKBFile`, and `deleteKBDocument` in both `elevenlabs.ts` and `elevenlabs-mcp.ts` to use the new paths (`/convai/knowledge-base/text`, `/convai/knowledge-base/url`, `/convai/knowledge-base/file`, `/convai/knowledge-base/{id}`). (`src/lib/providers/elevenlabs.ts`, `src/lib/providers/elevenlabs-mcp.ts`)
+- **Fixed response field `document_id` → `id`** — ElevenLabs now returns `id` instead of `document_id` in upload responses. All providers updated accordingly. MCP response parsing now checks `data.id ?? data.document_id` for backwards compatibility. (`src/lib/providers/elevenlabs.ts`, `src/lib/providers/elevenlabs-mcp.ts`)
+
+### Added — ElevenLabs Knowledge Base folder support
+
+- **Folder assignment for KB documents** — Documents can now be assigned to a named folder when uploading. A new `createKBFolder(name)` method on both providers calls `POST /convai/knowledge-base/folder` to create the folder in ElevenLabs and returns the folder ID. All three upload methods (`uploadKBText`, `uploadKBUrl`, `uploadKBFile`) accept an optional `parentFolderId` parameter. (`src/lib/providers/elevenlabs.ts`, `src/lib/providers/elevenlabs-mcp.ts`)
+- **`folderName` and `folderElevenLabsId` fields on `KnowledgeBaseDocument`** — Two new optional fields stored in the DB. `folderName` is the user-visible label; `folderElevenLabsId` is the ID returned by ElevenLabs and reused for subsequent uploads to the same folder. Migration: `20260321154924_add_kb_folder`. (`prisma/schema.prisma`)
+- **`getOrCreateFolder` helper in KB service** — Looks up an existing ElevenLabs folder ID for a given user+folderName (from existing DB records) before creating a new one, preventing duplicate folder creation. (`src/lib/services/knowledge-base-service.ts`)
+- **Folder threaded through all add functions and retry** — `addTextDocument`, `addUrlDocument`, `addFileDocument` accept an optional `folderName` parameter and pass the resolved folder ID to the provider. `retrySyncDocument` re-uses the stored `folderElevenLabsId` so retried uploads land in the same folder. (`src/lib/services/knowledge-base-service.ts`)
+- **API route accepts `folderName`** — `POST /api/knowledge-base` now extracts `folderName` from both JSON body and multipart FormData and passes it to service functions. (`src/app/api/knowledge-base/route.ts`)
+- **Folder input in KB upload form** — Each tab (TEXT, URL, FILE) in the Knowledge Base page now has an optional "Folder (optional)" text input. Folder name is included in the request when provided. Documents with a folder name show a small folder badge next to the document name in the list. (`src/app/(dashboard)/knowledge-base/page.tsx`)
+
+### Fixed — syncAgent 404 when ElevenLabs agent no longer exists
+
+- **Stale `elevenLabsAgentId` no longer causes sync to fail** — `syncAgent` in `agent-service.ts` now catches 404/Not Found errors from `provider.updateAgent`. On a 404, it clears the stale `elevenLabsAgentId` from the database and falls through to the `createAgent` branch, re-creating the agent on ElevenLabs instead of surfacing an error to the user. (`src/lib/services/agent-service.ts`)
+
+### Changed — Route KB ops through ElevenLabs MCP provider
+
+- **KB uploads/deletes now route through MCP provider** — `knowledge-base-service.ts` now imports `elevenLabsMcpProvider` instead of the plain REST `elevenLabsProvider`. When `USE_ELEVENLABS_MCP=true`, text and URL uploads attempt the MCP tools (`add_knowledge_base_document_from_text`, `add_knowledge_base_document_from_url`) before falling back to REST. File uploads always use REST (binary data can't be JSON-serialised for MCP). Deletes attempt MCP `delete_knowledge_base_document` then fall back to REST. (`src/lib/services/knowledge-base-service.ts`, `src/lib/providers/elevenlabs-mcp.ts`)
+- **Fix `updateAgent` in MCP provider silently dropping KB, tools, and webhook** — `ElevenLabsMcpProvider.updateAgent` now includes `knowledge_base` (in `conversation_config.agent`), `tools`, and `platform_settings.webhook` — matching the REST provider's behaviour. Agents synced with `USE_ELEVENLABS_MCP=true` will now have their knowledge base and webhook correctly set in ElevenLabs. (`src/lib/providers/elevenlabs-mcp.ts`)
+- **Add `getWebhookUrl` helper to MCP provider** — Mirrors the helper in `elevenlabs.ts`; used by the fixed `updateAgent`. (`src/lib/providers/elevenlabs-mcp.ts`)
+
+### Fixed — Knowledge Base sync error visibility
+
+- **Human-readable ElevenLabs errors** — `elFetch` and `uploadKBFile` in `elevenlabs.ts` now parse the JSON error body returned by ElevenLabs and extract `detail` (string or object) instead of throwing the raw JSON string. E.g. `{"detail":"The URL could not be scraped."}` becomes `"The URL could not be scraped."`. A new `parseElError` helper handles all cases with a safe fallback. (`src/lib/providers/elevenlabs.ts`)
+- **Error text no longer clipped in Knowledge Base list** — The doc list row was `flex items-center`, which prevented the row from growing when `SyncBadge` expanded with error text; the error paragraph was hidden by the outer `overflow-hidden` wrapper. Changed to `flex items-start` with `mt-0.5` on the icon and right-side buttons to keep visual alignment. Error text uses `text-xs break-words` (up from `text-[10px]`) for readability. A fallback message is shown when `syncError` is null. (`src/app/(dashboard)/knowledge-base/page.tsx`)
+
 ### Fixed — Knowledge Base sync status and retry
 
 - **KB documents no longer stuck on "Pending"** — `addTextDocument`, `addUrlDocument`, and `addFileDocument` in `knowledge-base-service.ts` previously swallowed ElevenLabs upload errors and returned the original record with `elevenLabsDocId: null`. They now persist `syncStatus: 'FAILED'` and `syncError` on failure, then re-throw so the API route can surface the error. On success, `syncStatus: 'SYNCED'` is written alongside the `elevenLabsDocId`. (`src/lib/services/knowledge-base-service.ts`)

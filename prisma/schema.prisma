@@ -142,6 +142,7 @@ enum ContactStatus {
   COMPLETED
   FAILED
   SKIPPED
+  NO_ANSWER
 }
 
 model Call {

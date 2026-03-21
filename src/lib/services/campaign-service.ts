@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getProvider } from '@/lib/providers'
+import { checkCampaignCompletion } from '@/lib/services/webhook-service'
 
 export async function listCampaigns(params: {
   status?: string
@@ -107,9 +108,15 @@ export async function deleteCampaign(id: string) {
   await prisma.campaign.delete({ where: { id } })
 }
 
-export async function startCampaign(id: string) {
+// ---------------------------------------------------------------------------
+// Start next batch of calls for a RUNNING campaign
+// ---------------------------------------------------------------------------
+
+export async function startNextBatch(campaignId: string): Promise<{
+  callsInitiated: number; successful: number; failed: number
+} | null> {
   const campaign = await prisma.campaign.findUnique({
-    where: { id },
+    where: { id: campaignId },
     include: {
       agent: true,
       contacts: {
@@ -119,18 +126,7 @@ export async function startCampaign(id: string) {
     },
   })
 
-  if (!campaign) {
-    throw new Error('Campaign not found')
-  }
-
-  if (campaign.contacts.length === 0) {
-    throw new Error('No pending contacts to call')
-  }
-
-  await prisma.campaign.update({
-    where: { id },
-    data: { status: 'RUNNING', startedAt: new Date() },
-  })
+  if (!campaign || campaign.contacts.length === 0) return null
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const agent = campaign.agent as any
@@ -155,7 +151,6 @@ export async function startCampaign(id: string) {
           },
         })
 
-        // Build provider-specific call ID fields
         const providerCallFields: Record<string, string> = {
           providerCallId: result.providerCallId,
         }
@@ -203,32 +198,72 @@ export async function startCampaign(id: string) {
   ).length
   const failed = results.length - successful
 
-  await prisma.campaign.update({
-    where: { id },
-    data: {
-      failedCalls: { increment: failed },
-    },
-  })
-
-  // If all contacts in this batch failed immediately and there are no more
-  // pending contacts, mark the campaign as completed.
-  if (successful === 0) {
-    const remainingPending = await prisma.campaignContact.count({
-      where: { campaignId: id, status: 'PENDING' },
+  if (failed > 0) {
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { failedCalls: { increment: failed } },
     })
-    if (remainingPending === 0) {
-      await prisma.campaign.update({
-        where: { id },
-        data: { status: 'COMPLETED', completedAt: new Date() },
-      })
-    }
   }
 
+  // If all contacts in this batch failed immediately, check completion
+  if (successful === 0) {
+    await checkCampaignCompletion(campaignId)
+  }
+
+  return { callsInitiated: batch.length, successful, failed }
+}
+
+// ---------------------------------------------------------------------------
+// Start campaign (sets RUNNING + kicks off first batch)
+// ---------------------------------------------------------------------------
+
+export async function startCampaign(id: string) {
+  const campaignCheck = await prisma.campaign.findUnique({
+    where: { id },
+    select: { status: true, maxRetries: true, startedAt: true },
+  })
+
+  if (!campaignCheck) {
+    throw new Error('Campaign not found')
+  }
+
+  // On retry: reset retryable NO_ANSWER contacts back to PENDING
+  if (campaignCheck.status === 'PAUSED') {
+    await prisma.campaignContact.updateMany({
+      where: {
+        campaignId: id,
+        status: 'NO_ANSWER',
+        attempts: { lt: campaignCheck.maxRetries },
+      },
+      data: { status: 'PENDING' },
+    })
+  }
+
+  // Verify there are pending contacts
+  const pendingCount = await prisma.campaignContact.count({
+    where: { campaignId: id, status: 'PENDING' },
+  })
+
+  if (pendingCount === 0) {
+    throw new Error('No pending contacts to call')
+  }
+
+  await prisma.campaign.update({
+    where: { id },
+    data: { status: 'RUNNING', startedAt: campaignCheck.startedAt ?? new Date() },
+  })
+
+  const batchResult = await startNextBatch(id)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agent = await prisma.agent.findFirst({ where: { campaigns: { some: { id } } }, select: { provider: true } })
+  const providerName = agent?.provider || 'ELEVENLABS'
+
   return {
-    provider: provider.providerName,
-    callsInitiated: batch.length,
-    successful,
-    failed,
+    provider: providerName,
+    callsInitiated: batchResult?.callsInitiated ?? 0,
+    successful: batchResult?.successful ?? 0,
+    failed: batchResult?.failed ?? 0,
   }
 }
 
@@ -239,4 +274,40 @@ export async function pauseCampaign(id: string) {
   })
 
   return campaign
+}
+
+// ---------------------------------------------------------------------------
+// Cancel campaign
+// ---------------------------------------------------------------------------
+
+export async function cancelCampaign(id: string) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    select: { status: true },
+  })
+
+  if (!campaign) {
+    throw new Error('Campaign not found')
+  }
+
+  if (campaign.status === 'COMPLETED' || campaign.status === 'CANCELLED') {
+    throw new Error('Campaign is already finished')
+  }
+
+  // Mark all PENDING/CALLING contacts as SKIPPED
+  await prisma.campaignContact.updateMany({
+    where: {
+      campaignId: id,
+      status: { in: ['PENDING', 'CALLING'] },
+    },
+    data: { status: 'SKIPPED' },
+  })
+
+  const updated = await prisma.campaign.update({
+    where: { id },
+    data: { status: 'CANCELLED', completedAt: new Date() },
+    include: { agent: true },
+  })
+
+  return updated
 }

@@ -72,29 +72,53 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
   readonly providerName = 'ELEVENLABS' as const
 
   async createAgent(config: AgentConfig): Promise<{ providerAgentId: string }> {
-    const client = await getElevenLabsMcpClient()
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
 
-    const agentResult = await client.callTool({
-      name: 'create_agent',
-      arguments: {
-        name: config.name,
-        system_prompt: config.systemPrompt,
-        first_message: config.firstMessage || 'Hello! How are you doing today?',
-        language: config.language || 'en',
-        voice_id: voiceId,
-        max_duration_seconds: config.maxDuration || 300,
-      },
-    })
+    // Try MCP first, fall back to REST if connection fails
+    try {
+      const client = await getElevenLabsMcpClient()
+      const agentResult = await client.callTool({
+        name: 'create_agent',
+        arguments: {
+          name: config.name,
+          system_prompt: config.systemPrompt,
+          first_message: config.firstMessage || 'Hello! How are you doing today?',
+          language: config.language || 'en',
+          voice_id: voiceId,
+          max_duration_seconds: config.maxDuration || 300,
+        },
+      })
 
-    const agentData = parseJsonContent(agentResult)
-    const agentId = (agentData.agent_id as string) || extractTextContent(agentResult)
+      const agentData = parseJsonContent(agentResult)
+      const agentId = (agentData.agent_id as string) || extractTextContent(agentResult)
 
-    if (!agentId) {
-      throw new Error('Failed to create ElevenLabs agent via MCP: no agent_id returned')
+      if (agentId) {
+        return { providerAgentId: agentId }
+      }
+    } catch (err) {
+      console.warn('MCP createAgent failed, falling back to REST:', err instanceof Error ? err.message : err)
     }
 
-    return { providerAgentId: agentId }
+    // REST fallback
+    const agentData = await elFetch('/convai/agents/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: config.name,
+        conversation_config: {
+          agent: {
+            prompt: { prompt: config.systemPrompt },
+            first_message: config.firstMessage || 'Hello! How are you doing today?',
+            language: config.language || 'en',
+          },
+          tts: { voice_id: voiceId },
+          conversation: {
+            max_duration_seconds: config.maxDuration || 300,
+          },
+        },
+      }),
+    })
+
+    return { providerAgentId: agentData.agent_id }
   }
 
   async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
@@ -136,47 +160,56 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
   }
 
   async createCall(config: VoiceCallConfig): Promise<VoiceCallResult> {
-    const client = await getElevenLabsMcpClient()
     let agentId = config.providerAgentId
 
     if (!agentId) {
-      // Fallback: create throwaway agent (backward compat)
-      const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
-      const agentResult = await client.callTool({
-        name: 'create_agent',
+      const created = await this.createAgent({
+        name: `Campaign Agent ${Date.now()}`,
+        systemPrompt: config.systemPrompt,
+        firstMessage: 'Hello! How are you doing today?',
+        voice: config.voice || 'rachel',
+        language: 'en',
+        maxDuration: config.maxDuration || 300,
+      })
+      agentId = created.providerAgentId
+    }
+
+    // Try MCP first, fall back to REST
+    try {
+      const client = await getElevenLabsMcpClient()
+      const callResult = await client.callTool({
+        name: 'make_outbound_call',
         arguments: {
-          name: `Campaign Agent ${Date.now()}`,
-          system_prompt: config.systemPrompt,
-          first_message: 'Hello! How are you doing today?',
-          language: 'en',
-          voice_id: voiceId,
-          max_duration_seconds: config.maxDuration || 300,
+          agent_id: agentId,
+          phone_number: config.phoneNumber,
+          phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID || '',
         },
       })
 
-      const agentData = parseJsonContent(agentResult)
-      agentId = (agentData.agent_id as string) || extractTextContent(agentResult)
+      const callData = parseJsonContent(callResult)
+      const conversationId = (callData.conversation_id as string) || agentId
 
-      if (!agentId) {
-        throw new Error('Failed to create ElevenLabs agent via MCP: no agent_id returned')
+      return {
+        providerCallId: conversationId,
+        status: 'INITIATED',
+        provider: 'ELEVENLABS',
       }
+    } catch (err) {
+      console.warn('MCP createCall failed, falling back to REST:', err instanceof Error ? err.message : err)
     }
 
-    // Make outbound call via MCP
-    const callResult = await client.callTool({
-      name: 'make_outbound_call',
-      arguments: {
+    // REST fallback
+    const callData = await elFetch('/convai/twilio/outbound-call', {
+      method: 'POST',
+      body: JSON.stringify({
         agent_id: agentId,
-        phone_number: config.phoneNumber,
-        phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID || '',
-      },
+        agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID || '',
+        to_number: config.phoneNumber,
+      }),
     })
 
-    const callData = parseJsonContent(callResult)
-    const conversationId = (callData.conversation_id as string) || agentId
-
     return {
-      providerCallId: conversationId,
+      providerCallId: callData.conversation_id || agentId,
       status: 'INITIATED',
       provider: 'ELEVENLABS',
     }

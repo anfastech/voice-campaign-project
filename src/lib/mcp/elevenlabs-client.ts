@@ -14,7 +14,7 @@ const IDLE_TIMEOUT_MS = 60_000
 let pool: PooledConnection[] = []
 let cleanupTimer: ReturnType<typeof setInterval> | null = null
 
-function getServerCommand(): { command: string; args: string[] } {
+export function getServerCommand(): { command: string; args: string[] } {
   const custom = process.env.ELEVENLABS_MCP_COMMAND
   if (custom) {
     const parts = custom.split(' ')

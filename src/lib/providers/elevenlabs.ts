@@ -36,7 +36,7 @@ export class ElevenLabsProvider implements VoiceProviderService {
   async createAgent(config: AgentConfig): Promise<{ providerAgentId: string }> {
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
 
-    const agentData = await elFetch('/convai/agents', {
+    const agentData = await elFetch('/convai/agents/create', {
       method: 'POST',
       body: JSON.stringify({
         name: config.name,
@@ -101,7 +101,7 @@ export class ElevenLabsProvider implements VoiceProviderService {
     if (!agentId) {
       // Fallback: create throwaway agent (backward compat)
       const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
-      const agentData = await elFetch('/convai/agents', {
+      const agentData = await elFetch('/convai/agents/create', {
         method: 'POST',
         body: JSON.stringify({
           name: `Campaign Agent ${Date.now()}`,

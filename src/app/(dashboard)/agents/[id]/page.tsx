@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Bot, Mic2, Phone, Thermometer, Clock, Globe,
-  Radio, Trash2, Sparkles, MessageSquare, Link2, Link2Off,
+  Radio, Trash2, Sparkles, MessageSquare, Link2, Link2Off, RefreshCw,
 } from 'lucide-react'
 import { PROVIDER_META } from '@/lib/providers/types'
 
@@ -42,6 +42,20 @@ export default function AgentDetailPage() {
     queryKey: ['agent', id],
     queryFn: () => fetch(`/api/agents/${id}`).then((r) => r.json()),
     enabled: !!id,
+  })
+
+  const syncMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/agents/${id}/sync`, { method: 'POST' }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error(body.error || 'Sync failed')
+        }
+        return r.json()
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent', id] })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -182,7 +196,7 @@ export default function AgentDetailPage() {
           ) : (
             <Link2Off className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.62 0.18 68)' }} />
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold" style={{ color: a.elevenLabsAgentId ? 'oklch(0.45 0.215 163)' : 'oklch(0.62 0.18 68)' }}>
               {a.elevenLabsAgentId ? 'Synced with ElevenLabs' : 'Not synced with ElevenLabs'}
             </p>
@@ -191,7 +205,27 @@ export default function AgentDetailPage() {
                 {a.elevenLabsAgentId}
               </p>
             )}
+            {syncMutation.isError && (
+              <p className="text-[10px] mt-1" style={{ color: 'oklch(0.52 0.245 15)' }}>
+                {syncMutation.error?.message || 'Sync failed'}
+              </p>
+            )}
           </div>
+          {!a.elevenLabsAgentId && (
+            <button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+              style={{
+                background: 'oklch(0.62 0.18 68 / 15%)',
+                border: '1px solid oklch(0.62 0.18 68 / 30%)',
+                color: 'oklch(0.52 0.18 68)',
+              }}
+            >
+              <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? 'Syncing…' : 'Sync to ElevenLabs'}
+            </button>
+          )}
         </div>
 
         {a.description && (

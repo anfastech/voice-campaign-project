@@ -4,6 +4,9 @@ import {
   listAgents,
   createAgent,
   getAgent,
+  updateAgent,
+  deleteAgent,
+  syncAgent,
   generateAgent,
 } from '../../lib/services/agent-service'
 
@@ -21,7 +24,7 @@ export function registerAgentTools(server: McpServer) {
       name: z.string().min(1),
       description: z.string().optional(),
       systemPrompt: z.string().min(1),
-      provider: z.enum(['ULTRAVOX', 'ELEVENLABS', 'VAPI', 'LIVEKIT']).optional(),
+      provider: z.enum(['ELEVENLABS']).optional().default('ELEVENLABS'),
       voice: z.string().optional(),
       language: z.string().optional(),
       temperature: z.number().min(0).max(1).optional(),
@@ -40,6 +43,45 @@ export function registerAgentTools(server: McpServer) {
   }, async (args) => {
     const agent = await getAgent(args.id)
     return { content: [{ type: 'text' as const, text: JSON.stringify(agent, null, 2) }] }
+  })
+
+  server.registerTool('update_agent', {
+    description: 'Update an existing voice AI agent. Changes are synced to ElevenLabs if the agent is registered.',
+    inputSchema: {
+      id: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      systemPrompt: z.string().optional(),
+      voice: z.string().optional(),
+      language: z.string().optional(),
+      temperature: z.number().min(0).max(1).optional(),
+      maxDuration: z.number().int().min(30).max(3600).optional(),
+      firstMessage: z.string().optional(),
+    },
+  }, async (args) => {
+    const { id, ...data } = args
+    const agent = await updateAgent(id, data)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(agent, null, 2) }] }
+  })
+
+  server.registerTool('delete_agent', {
+    description: 'Soft-delete a voice AI agent. Also removes the agent from ElevenLabs if synced.',
+    inputSchema: {
+      id: z.string(),
+    },
+  }, async (args) => {
+    await deleteAgent(args.id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true, id: args.id }) }] }
+  })
+
+  server.registerTool('sync_agent', {
+    description: 'Manually sync an agent to ElevenLabs. Creates the agent on ElevenLabs if not yet synced, or updates it if already synced.',
+    inputSchema: {
+      id: z.string(),
+    },
+  }, async (args) => {
+    const result = await syncAgent(args.id)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
   })
 
   server.registerTool('generate_agent', {

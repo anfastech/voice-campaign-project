@@ -147,6 +147,7 @@ export async function startCampaign(id: string) {
           temperature: agent.temperature,
           maxDuration: agent.maxDuration,
           phoneNumber: cc.contact.phoneNumber,
+          providerAgentId: agent.elevenLabsAgentId || undefined,
           metadata: {
             name: cc.contact.name || cc.contact.phoneNumber,
             campaignId: campaign.id,

@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Bot, Mic2, Phone, Thermometer, Clock, Globe,
-  Radio, Trash2, Sparkles, MessageSquare,
+  Radio, Trash2, Sparkles, MessageSquare, Link2, Link2Off,
 } from 'lucide-react'
 import { PROVIDER_META } from '@/lib/providers/types'
 
@@ -83,9 +83,8 @@ export default function AgentDetailPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const a = agent as any
-  const provider = a.provider || 'ULTRAVOX'
-  const meta = PROVIDER_META[provider] || PROVIDER_META.ULTRAVOX
-  const supportsWebRTC = meta.supportsWebRTC !== false && provider !== 'ELEVENLABS'
+  const provider = a.provider || 'ELEVENLABS'
+  const meta = PROVIDER_META[provider] || PROVIDER_META.ELEVENLABS
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -116,28 +115,13 @@ export default function AgentDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {supportsWebRTC ? (
-            <Link href={`/agents/${id}/test`}>
-              <button
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                  boxShadow: '0 4px 14px oklch(0.49 0.263 281 / 35%)',
-                }}
-              >
-                <Radio className="w-4 h-4" />
-                Test Live
-              </button>
-            </Link>
-          ) : (
-            <div
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs"
-              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
-            >
-              <Radio className="w-3.5 h-3.5" />
-              Live test via PSTN only
-            </div>
-          )}
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs"
+            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            Test via campaign call
+          </div>
           <button
             onClick={() => { if (confirm('Delete this agent?')) deleteMutation.mutate() }}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
@@ -182,7 +166,32 @@ export default function AgentDetailPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <InfoRow icon={Globe} label="Language" value={a.language?.toUpperCase() || 'EN'} />
-          <InfoRow icon={Mic2} label="Voice" value={a.voice || 'Mark'} />
+          <InfoRow icon={Mic2} label="Voice" value={a.voice || 'rachel'} />
+        </div>
+
+        {/* ElevenLabs Sync Status */}
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3"
+          style={{
+            background: a.elevenLabsAgentId ? 'oklch(0.55 0.215 163 / 8%)' : 'oklch(0.72 0.18 68 / 8%)',
+            border: `1px solid ${a.elevenLabsAgentId ? 'oklch(0.55 0.215 163 / 20%)' : 'oklch(0.72 0.18 68 / 20%)'}`,
+          }}
+        >
+          {a.elevenLabsAgentId ? (
+            <Link2 className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.45 0.215 163)' }} />
+          ) : (
+            <Link2Off className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.62 0.18 68)' }} />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold" style={{ color: a.elevenLabsAgentId ? 'oklch(0.45 0.215 163)' : 'oklch(0.62 0.18 68)' }}>
+              {a.elevenLabsAgentId ? 'Synced with ElevenLabs' : 'Not synced with ElevenLabs'}
+            </p>
+            {a.elevenLabsAgentId && (
+              <p className="text-[10px] font-mono truncate" style={{ color: 'oklch(0.45 0.215 163 / 70%)' }}>
+                {a.elevenLabsAgentId}
+              </p>
+            )}
+          </div>
         </div>
 
         {a.description && (

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "supabase-local": {
+      "url": "http://127.0.0.1:54321/mcp/v1"
+    },
+    "elevenlabs": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/elevenlabs-mcp-server@latest"],
+      "env": {
+        "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
+      }
+    }
+  }
+}

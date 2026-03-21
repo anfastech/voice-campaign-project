@@ -22,7 +22,7 @@ function getServerCommand(): { command: string; args: string[] } {
   }
   return {
     command: 'npx',
-    args: ['-y', '@angelogiacco/elevenlabs-mcp-server'],
+    args: ['-y', '@anthropic-ai/elevenlabs-mcp-server@latest'],
   }
 }
 

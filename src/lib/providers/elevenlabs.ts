@@ -1,4 +1,4 @@
-import type { VoiceCallConfig, VoiceCallDetails, VoiceCallResult, VoiceProviderService } from './types'
+import type { AgentConfig, VoiceCallConfig, VoiceCallDetails, VoiceCallResult, VoiceProviderService } from './types'
 
 const BASE_URL = 'https://api.elevenlabs.io/v1'
 
@@ -33,23 +33,18 @@ const VOICE_ID_MAP: Record<string, string> = {
 export class ElevenLabsProvider implements VoiceProviderService {
   readonly providerName = 'ELEVENLABS' as const
 
-  /**
-   * Create an ElevenLabs Conversational AI agent and initiate a conversation.
-   * ElevenLabs supports outbound calling via their telephony integration.
-   */
-  async createCall(config: VoiceCallConfig): Promise<VoiceCallResult> {
+  async createAgent(config: AgentConfig): Promise<{ providerAgentId: string }> {
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
 
-    // Create/register a conversation agent
     const agentData = await elFetch('/convai/agents', {
       method: 'POST',
       body: JSON.stringify({
-        name: `Campaign Agent ${Date.now()}`,
+        name: config.name,
         conversation_config: {
           agent: {
             prompt: { prompt: config.systemPrompt },
-            first_message: 'Hello! How are you doing today?',
-            language: 'en',
+            first_message: config.firstMessage || 'Hello! How are you doing today?',
+            language: config.language || 'en',
           },
           tts: { voice_id: voiceId },
           conversation: {
@@ -59,11 +54,74 @@ export class ElevenLabsProvider implements VoiceProviderService {
       }),
     })
 
-    const agentId = agentData.agent_id
+    return { providerAgentId: agentData.agent_id }
+  }
 
-    // Initiate the outbound call via phone
-    // ElevenLabs requires a phone number configured in their platform
-    const callData = await elFetch(`/convai/conversations/outbound`, {
+  async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
+    const conversationConfig: Record<string, unknown> = {}
+
+    if (config.systemPrompt || config.firstMessage || config.language) {
+      conversationConfig.agent = {
+        ...(config.systemPrompt ? { prompt: { prompt: config.systemPrompt } } : {}),
+        ...(config.firstMessage ? { first_message: config.firstMessage } : {}),
+        ...(config.language ? { language: config.language } : {}),
+      }
+    }
+    if (config.voice) {
+      const voiceId = VOICE_ID_MAP[config.voice] || config.voice
+      conversationConfig.tts = { voice_id: voiceId }
+    }
+    if (config.maxDuration) {
+      conversationConfig.conversation = { max_duration_seconds: config.maxDuration }
+    }
+
+    await elFetch(`/convai/agents/${providerAgentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        conversation_config: conversationConfig,
+        ...(config.name ? { name: config.name } : {}),
+      }),
+    })
+  }
+
+  async deleteAgent(providerAgentId: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/convai/agents/${providerAgentId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
+    }
+  }
+
+  async createCall(config: VoiceCallConfig): Promise<VoiceCallResult> {
+    let agentId = config.providerAgentId
+
+    if (!agentId) {
+      // Fallback: create throwaway agent (backward compat)
+      const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
+      const agentData = await elFetch('/convai/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Campaign Agent ${Date.now()}`,
+          conversation_config: {
+            agent: {
+              prompt: { prompt: config.systemPrompt },
+              first_message: 'Hello! How are you doing today?',
+              language: 'en',
+            },
+            tts: { voice_id: voiceId },
+            conversation: {
+              max_duration_seconds: config.maxDuration || 300,
+            },
+          },
+        }),
+      })
+      agentId = agentData.agent_id
+    }
+
+    const callData = await elFetch(`/convai/twilio/outbound-call`, {
       method: 'POST',
       body: JSON.stringify({
         agent_id: agentId,

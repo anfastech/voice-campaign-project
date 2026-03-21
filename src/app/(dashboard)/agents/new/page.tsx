@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Bot, Mic2, Globe, Thermometer, Clock, Sparkles,
-  Zap, Wand2, ChevronRight, RotateCcw,
+  Wand2, ChevronRight, RotateCcw,
 } from 'lucide-react'
 import { PROVIDER_VOICES, PROVIDER_META } from '@/lib/providers/types'
 
@@ -27,7 +27,6 @@ const QUICK_PROMPTS = [
   { label: 'Collections', prompt: 'A professional and empathetic collections agent that reminds customers about overdue invoices, explains payment options, and sets up payment plans.' },
 ]
 
-type Provider = 'ULTRAVOX' | 'ELEVENLABS' | 'VAPI' | 'LIVEKIT'
 type Mode = 'ai' | 'manual'
 
 interface AgentForm {
@@ -46,7 +45,7 @@ const DEFAULT_FORM: AgentForm = {
   description: '',
   systemPrompt: '',
   firstMessage: '',
-  voice: 'Mark',
+  voice: 'rachel',
   language: 'en',
   temperature: 0.7,
   maxDuration: 300,
@@ -63,21 +62,15 @@ function inputStyle() {
 export default function NewAgentPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('ai')
-  const [provider, setProvider] = useState<Provider>('ULTRAVOX')
   const [form, setForm] = useState<AgentForm>(DEFAULT_FORM)
   const [aiPrompt, setAiPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [generateError, setGenerateError] = useState('')
 
-  const voices = PROVIDER_VOICES[provider] || PROVIDER_VOICES.ULTRAVOX
-  const providerMeta = PROVIDER_META[provider] || PROVIDER_META.ULTRAVOX
-
-  const handleProviderChange = (p: Provider) => {
-    setProvider(p)
-    const defaultVoice = PROVIDER_VOICES[p]?.[0]?.id || 'Mark'
-    setForm((f) => ({ ...f, voice: defaultVoice }))
-  }
+  const provider = 'ELEVENLABS' as const
+  const voices = PROVIDER_VOICES.ELEVENLABS
+  const providerMeta = PROVIDER_META.ELEVENLABS
 
   const handleGenerate = async () => {
     if (!aiPrompt.trim()) return
@@ -95,18 +88,12 @@ export default function NewAgentPage() {
         return
       }
 
-      // Map suggested provider
-      const suggestedProvider = (['ULTRAVOX', 'VAPI', 'ELEVENLABS', 'LIVEKIT'].includes(data.suggestedProvider))
-        ? data.suggestedProvider as Provider
-        : provider
-
-      // Map voice to valid voice for suggested provider
-      const providerVoices = PROVIDER_VOICES[suggestedProvider] || PROVIDER_VOICES.ULTRAVOX
+      // Always use ElevenLabs voices regardless of AI suggestion
+      const providerVoices = PROVIDER_VOICES.ELEVENLABS
       const matchedVoice = providerVoices.find(
         (v) => v.id.toLowerCase() === (data.voice || '').toLowerCase()
       ) || providerVoices[0]
 
-      setProvider(suggestedProvider)
       setForm({
         name: data.name || '',
         description: data.description || '',
@@ -127,7 +114,7 @@ export default function NewAgentPage() {
   }
 
   const createAgent = useMutation({
-    mutationFn: (data: AgentForm & { provider: Provider }) =>
+    mutationFn: (data: AgentForm & { provider: string }) =>
       fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -340,46 +327,6 @@ export default function NewAgentPage() {
               </button>
             </div>
           )}
-
-          {/* Provider selection */}
-          <div
-            className="rounded-2xl p-5"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-          >
-            <div
-              className="flex items-center gap-2.5 mb-4"
-              style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.875rem' }}
-            >
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'oklch(0.49 0.263 281 / 10%)' }}>
-                <Zap className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
-              </div>
-              <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Voice Provider</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {(['ULTRAVOX', 'ELEVENLABS', 'VAPI', 'LIVEKIT'] as Provider[]).map((p) => {
-                const meta = PROVIDER_META[p]
-                const active = provider === p
-                return (
-                  <button
-                    key={p}
-                    onClick={() => handleProviderChange(p)}
-                    className="p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      background: active ? meta.bg : 'var(--muted)',
-                      border: active ? `1px solid ${meta.color}` : '1px solid var(--border)',
-                    }}
-                  >
-                    <p className="text-xs font-bold mb-1" style={{ color: active ? meta.color : 'var(--foreground)' }}>
-                      {meta.label}
-                    </p>
-                    <p className="text-[10px] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                      {meta.description}
-                    </p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
 
           {/* Agent Identity */}
           <div

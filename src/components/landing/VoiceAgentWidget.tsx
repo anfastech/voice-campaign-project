@@ -22,7 +22,11 @@ function AudioWave({ active }: { active: boolean }) {
             width: "3px",
             background: active ? "oklch(0.68 0.22 281)" : "oklch(0.68 0.22 281 / 30%)",
             height: active ? `${h * 4}px` : "4px",
-            animation: active ? `wave-bar ${0.5 + i * 0.07}s ease-in-out infinite alternate` : "none",
+            animationName: active ? "wave-bar" : "none",
+            animationDuration: `${0.5 + i * 0.07}s`,
+            animationTimingFunction: "ease-in-out",
+            animationIterationCount: "infinite",
+            animationDirection: "alternate",
             animationDelay: `${i * 0.06}s`,
             transition: "height 0.2s ease",
           }}
@@ -41,7 +45,10 @@ function TypingDots() {
           className="w-1.5 h-1.5 rounded-full"
           style={{
             background: "oklch(0.8 0.01 285)",
-            animation: "typing-dot 1.2s ease-in-out infinite",
+            animationName: "typing-dot",
+            animationDuration: "1.2s",
+            animationTimingFunction: "ease-in-out",
+            animationIterationCount: "infinite",
             animationDelay: `${i * 0.2}s`,
           }}
         />
@@ -56,7 +63,7 @@ export function VoiceAgentWidget() {
   const [callDuration, setCallDuration] = useState(0)
   const [agentSpeaking, setAgentSpeaking] = useState(false)
   const [callActive, setCallActive] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const startDelay = setTimeout(() => {
@@ -108,7 +115,10 @@ export function VoiceAgentWidget() {
   }, [callActive, loopKey])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    })
   }, [visibleMessages, typing])
 
   const formatTime = (s: number) => {
@@ -208,7 +218,7 @@ export function VoiceAgentWidget() {
         </div>
 
         {/* Messages */}
-        <div className="px-4 py-4 space-y-3 overflow-y-auto" style={{ minHeight: "220px", maxHeight: "260px" }}>
+        <div ref={messagesContainerRef} className="px-4 py-4 space-y-3 overflow-y-auto" style={{ minHeight: "220px", maxHeight: "260px" }}>
           {visibleMessages.map((idx) => {
             const msg = CONVERSATION[idx]
             const isAgent = msg.role === "agent"
@@ -258,8 +268,6 @@ export function VoiceAgentWidget() {
               </span>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Bottom controls */}

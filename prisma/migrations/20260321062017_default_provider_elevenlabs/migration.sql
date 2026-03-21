@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Agent" ALTER COLUMN "provider" SET DEFAULT 'ELEVENLABS',
+ALTER COLUMN "voice" SET DEFAULT 'rachel';

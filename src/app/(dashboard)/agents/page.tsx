@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Plus, Bot, Trash2, Phone, Mic2, Thermometer, Clock, Sparkles, Radio } from 'lucide-react'
+import { Plus, Bot, Trash2, Phone, Mic2, Thermometer, Clock, Sparkles, Link2 } from 'lucide-react'
 import { PROVIDER_META } from '@/lib/providers/types'
 
 export default function AgentsPage() {
@@ -70,7 +70,7 @@ export default function AgentsPage() {
             No AI agents yet
           </h3>
           <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
-            Create your first voice agent using Ultravox, ElevenLabs, or VAPI.
+            Create your first voice agent powered by ElevenLabs.
           </p>
           <Link href="/agents/new">
             <button
@@ -88,8 +88,8 @@ export default function AgentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {agents.map((agent: any) => {
-            const provider = agent.provider || 'ULTRAVOX'
-            const providerMeta = PROVIDER_META[provider] || PROVIDER_META.ULTRAVOX
+            const provider = agent.provider || 'ELEVENLABS'
+            const providerMeta = PROVIDER_META[provider] || PROVIDER_META.ELEVENLABS
 
             return (
               <div
@@ -129,21 +129,27 @@ export default function AgentsPage() {
                         >
                           {agent.language}
                         </span>
+                        {agent.elevenLabsAgentId ? (
+                          <span
+                            className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                            style={{ background: 'oklch(0.55 0.215 163 / 10%)', color: 'oklch(0.45 0.215 163)' }}
+                            title={`Synced: ${agent.elevenLabsAgentId}`}
+                          >
+                            <Link2 className="w-2.5 h-2.5" />
+                            Synced
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                            style={{ background: 'oklch(0.72 0.18 68 / 10%)', color: 'oklch(0.62 0.18 68)' }}
+                          >
+                            Not synced
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>
                   <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                    {(provider === 'ULTRAVOX' || provider === 'VAPI') && (
-                      <Link href={`/agents/${agent.id}/test`}>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg"
-                          style={{ color: providerMeta.color, background: providerMeta.bg }}
-                          title="Test Live"
-                        >
-                          <Radio className="w-3.5 h-3.5" />
-                        </button>
-                      </Link>
-                    )}
                     <button
                       onClick={() => {
                         if (confirm('Delete this agent?')) deleteMutation.mutate(agent.id)

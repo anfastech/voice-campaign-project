@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = agentSchema.parse(body)
     const agent = await createAgent(data)
-    return NextResponse.json(agent, { status: 201 })
+    const status = 'syncStatus' in agent && agent.syncStatus === 'failed' ? 207 : 201
+    return NextResponse.json(agent, { status })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid data', details: error.issues }, { status: 400 })

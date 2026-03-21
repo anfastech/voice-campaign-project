@@ -1,4 +1,4 @@
-import type { VoiceCallConfig, VoiceCallDetails, VoiceCallResult, VoiceProviderService } from './types'
+import type { AgentConfig, VoiceCallConfig, VoiceCallDetails, VoiceCallResult, VoiceProviderService } from './types'
 import { getElevenLabsMcpClient } from '../mcp/elevenlabs-client'
 
 // REST fallback for operations not supported by MCP
@@ -31,9 +31,28 @@ function extractTextContent(result: any): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseJsonContent(result: any): Record<string, unknown> {
   const text = extractTextContent(result)
+  if (!text) {
+    console.warn('MCP response had no text content:', JSON.stringify(result))
+    return {}
+  }
   try {
     return JSON.parse(text)
   } catch {
+    // Try to extract JSON from a text response (e.g. "Created agent with id: {...}")
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0])
+      } catch {
+        // fall through
+      }
+    }
+    // Try to extract an agent_id from plain text like "agent_id: abc123"
+    const idMatch = text.match(/agent_id[:\s]+([a-zA-Z0-9_-]+)/)
+    if (idMatch) {
+      return { agent_id: idMatch[1] }
+    }
+    console.warn('MCP response could not be parsed as JSON:', text)
     return {}
   }
 }
@@ -52,18 +71,17 @@ const VOICE_ID_MAP: Record<string, string> = {
 export class ElevenLabsMcpProvider implements VoiceProviderService {
   readonly providerName = 'ELEVENLABS' as const
 
-  async createCall(config: VoiceCallConfig): Promise<VoiceCallResult> {
+  async createAgent(config: AgentConfig): Promise<{ providerAgentId: string }> {
     const client = await getElevenLabsMcpClient()
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
 
-    // Step 1: Create an ElevenLabs conversational AI agent via MCP
     const agentResult = await client.callTool({
       name: 'create_agent',
       arguments: {
-        name: `Campaign Agent ${Date.now()}`,
+        name: config.name,
         system_prompt: config.systemPrompt,
-        first_message: 'Hello! How are you doing today?',
-        language: 'en',
+        first_message: config.firstMessage || 'Hello! How are you doing today?',
+        language: config.language || 'en',
         voice_id: voiceId,
         max_duration_seconds: config.maxDuration || 300,
       },
@@ -76,7 +94,75 @@ export class ElevenLabsMcpProvider implements VoiceProviderService {
       throw new Error('Failed to create ElevenLabs agent via MCP: no agent_id returned')
     }
 
-    // Step 2: Make outbound call via MCP
+    return { providerAgentId: agentId }
+  }
+
+  async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
+    const conversationConfig: Record<string, unknown> = {}
+
+    if (config.systemPrompt || config.firstMessage || config.language) {
+      conversationConfig.agent = {
+        ...(config.systemPrompt ? { prompt: { prompt: config.systemPrompt } } : {}),
+        ...(config.firstMessage ? { first_message: config.firstMessage } : {}),
+        ...(config.language ? { language: config.language } : {}),
+      }
+    }
+    if (config.voice) {
+      const voiceId = VOICE_ID_MAP[config.voice] || config.voice
+      conversationConfig.tts = { voice_id: voiceId }
+    }
+    if (config.maxDuration) {
+      conversationConfig.conversation = { max_duration_seconds: config.maxDuration }
+    }
+
+    await elFetch(`/convai/agents/${providerAgentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        conversation_config: conversationConfig,
+        ...(config.name ? { name: config.name } : {}),
+      }),
+    })
+  }
+
+  async deleteAgent(providerAgentId: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/convai/agents/${providerAgentId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY || '' },
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`ElevenLabs API ${res.status}: ${text}`)
+    }
+  }
+
+  async createCall(config: VoiceCallConfig): Promise<VoiceCallResult> {
+    const client = await getElevenLabsMcpClient()
+    let agentId = config.providerAgentId
+
+    if (!agentId) {
+      // Fallback: create throwaway agent (backward compat)
+      const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
+      const agentResult = await client.callTool({
+        name: 'create_agent',
+        arguments: {
+          name: `Campaign Agent ${Date.now()}`,
+          system_prompt: config.systemPrompt,
+          first_message: 'Hello! How are you doing today?',
+          language: 'en',
+          voice_id: voiceId,
+          max_duration_seconds: config.maxDuration || 300,
+        },
+      })
+
+      const agentData = parseJsonContent(agentResult)
+      agentId = (agentData.agent_id as string) || extractTextContent(agentResult)
+
+      if (!agentId) {
+        throw new Error('Failed to create ElevenLabs agent via MCP: no agent_id returned')
+      }
+    }
+
+    // Make outbound call via MCP
     const callResult = await client.callTool({
       name: 'make_outbound_call',
       arguments: {

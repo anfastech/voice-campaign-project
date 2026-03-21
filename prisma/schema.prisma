@@ -31,8 +31,8 @@ model Agent {
   name              String
   description       String?       @db.Text
   systemPrompt      String        @db.Text
-  provider          VoiceProvider @default(ULTRAVOX)
-  voice             String        @default("Mark")
+  provider          VoiceProvider @default(ELEVENLABS)
+  voice             String        @default("rachel")
   language          String        @default("en")
   temperature       Float         @default(0.7)
   firstMessage      String?       @db.Text

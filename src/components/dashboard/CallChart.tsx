@@ -18,13 +18,14 @@ interface ChartData {
   total: number
   successful: number
   failed: number
+  previousTotal?: number
+  previousSuccessful?: number
 }
 
 interface CallChartProps {
   data: ChartData[]
 }
 
-// Custom tooltip
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
@@ -86,10 +87,10 @@ export function CallChart({ data }: CallChartProps) {
         <div className="flex items-center justify-between mb-1">
           <div>
             <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>
-              Call Volume
+              Call Breakdown
             </h3>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              Last 7 days breakdown
+              Successful vs Failed calls
             </p>
           </div>
           <div className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -120,14 +121,13 @@ export function CallChart({ data }: CallChartProps) {
         boxShadow: '0 1px 3px oklch(0 0 0 / 4%)',
       }}
     >
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>
-            Call Volume
+            Call Breakdown
           </h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-            Last 7 days · Successful vs Failed
+            Successful vs Failed · by day
           </p>
         </div>
         <div className="flex items-center gap-4">

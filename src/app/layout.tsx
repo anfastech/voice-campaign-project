@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
   title: 'VoiceCampaign — AI Voice Platform',
-  description: 'AI-powered outbound voice campaign management with Ultravox, ElevenLabs, and VAPI',
+  description: 'AI-powered outbound voice campaign management platform',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

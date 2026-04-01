@@ -5,7 +5,6 @@ import {
   Bot,
   BarChart3,
   Users,
-  Globe,
   CheckCircle2,
   ArrowRight,
   Sparkles,
@@ -23,7 +22,7 @@ const features = [
   {
     icon: Bot,
     title: "AI Voice Agents",
-    description: "Deploy human-like voice agents powered by Ultravox, ElevenLabs & VAPI. Zero wait times, infinite scale.",
+    description: "Deploy human-like voice agents with zero wait times and infinite scale.",
     color: "oklch(0.49 0.263 281)",
     glow: "oklch(0.49 0.263 281 / 25%)",
     gradient: "linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))",
@@ -79,7 +78,6 @@ const steps = [
   },
 ]
 
-const providers = ["Ultravox", "ElevenLabs", "VAPI", "Twilio", "OpenAI"]
 
 export default function LandingPage() {
   return (
@@ -179,7 +177,7 @@ export default function LandingPage() {
                 }}
               >
                 <Sparkles className="w-3 h-3" />
-                Powered by Ultravox · ElevenLabs · VAPI
+                Powered by Advanced AI
               </div>
 
               {/* Headline */}
@@ -287,32 +285,6 @@ export default function LandingPage() {
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: "oklch(1 0 0 / 30%)" }} />
         </div>
       </section>
-
-      {/* ── Provider Trust Bar ── */}
-      <div
-        style={{
-          background: "oklch(0.085 0.02 285)",
-          borderTop: "1px solid oklch(1 0 0 / 6%)",
-          borderBottom: "1px solid oklch(1 0 0 / 6%)",
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-6 py-5 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "oklch(0.45 0.015 285)" }}>
-            Integrates with
-          </p>
-          <div className="flex items-center gap-6 flex-wrap">
-            {providers.map((p) => (
-              <span key={p} className="text-sm font-semibold" style={{ color: "oklch(0.52 0.015 285)" }}>
-                {p}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: "oklch(0.55 0.015 285)" }}>
-            <Globe className="w-3.5 h-3.5" />
-            Global infrastructure
-          </div>
-        </div>
-      </div>
 
       {/* ── Stats ── */}
       <section className="py-20" style={{ background: "oklch(0.07 0.018 285)" }}>

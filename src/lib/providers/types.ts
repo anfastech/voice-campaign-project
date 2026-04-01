@@ -82,3 +82,5 @@ export const PROVIDER_META: Record<string, { label: string; color: string; bg: s
     supportsWebRTC: false,
   },
 }
+
+export const VOICE_OPTIONS = PROVIDER_VOICES.ELEVENLABS.map(v => ({ id: v.id, label: v.label }))

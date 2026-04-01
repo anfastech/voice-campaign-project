@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { elevenLabsMcpProvider as elevenLabsProvider } from '@/lib/providers/elevenlabs-mcp'
 
-export async function listDocuments(userId: string) {
+export async function listDocuments(userId: string, agentId?: string) {
   return prisma.knowledgeBaseDocument.findMany({
-    where: { userId },
+    where: { userId, ...(agentId ? { agentId } : {}) },
     orderBy: { createdAt: 'desc' },
   })
 }
@@ -17,7 +17,7 @@ async function getOrCreateFolder(userId: string, folderName: string): Promise<st
   return elevenLabsProvider.createKBFolder(folderName)
 }
 
-export async function addTextDocument(userId: string, name: string, content: string, folderName?: string) {
+export async function addTextDocument(userId: string, name: string, content: string, folderName?: string, agentId?: string) {
   if (!name?.trim()) throw new Error('Name is required')
   if (!content?.trim()) throw new Error('Content is required')
 
@@ -27,7 +27,7 @@ export async function addTextDocument(userId: string, name: string, content: str
   }
 
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'TEXT', content, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
+    data: { userId, name, type: 'TEXT', content, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null, agentId: agentId || null },
   })
 
   try {
@@ -46,7 +46,7 @@ export async function addTextDocument(userId: string, name: string, content: str
   }
 }
 
-export async function addUrlDocument(userId: string, name: string, url: string, folderName?: string) {
+export async function addUrlDocument(userId: string, name: string, url: string, folderName?: string, agentId?: string) {
   if (!name?.trim()) throw new Error('Name is required')
   if (!url?.trim()) throw new Error('URL is required')
 
@@ -56,7 +56,7 @@ export async function addUrlDocument(userId: string, name: string, url: string, 
   }
 
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'URL', url, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
+    data: { userId, name, type: 'URL', url, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null, agentId: agentId || null },
   })
 
   try {
@@ -80,7 +80,8 @@ export async function addFileDocument(
   name: string,
   fileBuffer: Buffer,
   fileName: string,
-  folderName?: string
+  folderName?: string,
+  agentId?: string
 ) {
   if (!name?.trim()) throw new Error('Name is required')
 
@@ -90,7 +91,7 @@ export async function addFileDocument(
   }
 
   const doc = await prisma.knowledgeBaseDocument.create({
-    data: { userId, name, type: 'FILE', fileName, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null },
+    data: { userId, name, type: 'FILE', fileName, syncStatus: 'PENDING', folderName: folderName?.trim() || null, folderElevenLabsId: folderElevenLabsId || null, agentId: agentId || null },
   })
 
   try {

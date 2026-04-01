@@ -18,7 +18,7 @@ export async function listAgents() {
   const agents = await prisma.agent.findMany({
     where: { userId: 'default-user', isActive: true },
     include: {
-      _count: { select: { calls: true } },
+      _count: { select: { calls: true, campaigns: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -53,7 +53,7 @@ export async function createAgent(data: {
   let kbDocs: Array<{ type: 'id'; id: string }> = []
   if (agent.useKnowledgeBase) {
     const docs = await prisma.knowledgeBaseDocument.findMany({
-      where: { userId: agent.userId, elevenLabsDocId: { not: null } },
+      where: { userId: agent.userId, agentId: agent.id, elevenLabsDocId: { not: null } },
       select: { elevenLabsDocId: true },
     })
     kbDocs = docs
@@ -180,7 +180,7 @@ export async function syncAgent(id: string) {
   let kbDocs: Array<{ type: 'id'; id: string }> = []
   if (agent.useKnowledgeBase) {
     const docs = await prisma.knowledgeBaseDocument.findMany({
-      where: { userId: agent.userId, elevenLabsDocId: { not: null } },
+      where: { userId: agent.userId, agentId: agent.id, elevenLabsDocId: { not: null } },
       select: { elevenLabsDocId: true },
     })
     kbDocs = docs

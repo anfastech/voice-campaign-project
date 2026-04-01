@@ -1,8 +1,19 @@
 import { prisma } from '@/lib/prisma'
 
-export async function getStats() {
+export async function getStats(period: string = '7d') {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+
+  // Calculate period ranges for comparison
+  const periodDays = period === '1d' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 7
+  const currentStart = new Date()
+  currentStart.setDate(currentStart.getDate() - periodDays)
+  currentStart.setHours(0, 0, 0, 0)
+
+  const previousStart = new Date(currentStart)
+  previousStart.setDate(previousStart.getDate() - periodDays)
+
+  const now = new Date()
 
   const [
     totalCalls,
@@ -14,6 +25,16 @@ export async function getStats() {
     todayCostAgg,
     avgDurationAgg,
     recentCalls,
+    // Period comparison data
+    currentPeriodCalls,
+    previousPeriodCalls,
+    currentPeriodSuccessful,
+    previousPeriodSuccessful,
+    currentPeriodCostAgg,
+    previousPeriodCostAgg,
+    currentPeriodDuration,
+    previousPeriodDuration,
+    totalAgents,
   ] = await Promise.all([
     prisma.call.count(),
     prisma.call.count({ where: { startedAt: { gte: today } } }),
@@ -45,7 +66,29 @@ export async function getStats() {
         campaign: { select: { name: true } },
       },
     }),
+    // Current period
+    prisma.call.count({ where: { startedAt: { gte: currentStart, lt: now } } }),
+    prisma.call.count({ where: { startedAt: { gte: previousStart, lt: currentStart } } }),
+    prisma.call.count({ where: { startedAt: { gte: currentStart, lt: now }, status: 'COMPLETED' } }),
+    prisma.call.count({ where: { startedAt: { gte: previousStart, lt: currentStart }, status: 'COMPLETED' } }),
+    prisma.call.aggregate({ where: { startedAt: { gte: currentStart, lt: now } }, _sum: { cost: true } }),
+    prisma.call.aggregate({ where: { startedAt: { gte: previousStart, lt: currentStart } }, _sum: { cost: true } }),
+    prisma.call.aggregate({ where: { startedAt: { gte: currentStart, lt: now }, status: 'COMPLETED' }, _avg: { duration: true } }),
+    prisma.call.aggregate({ where: { startedAt: { gte: previousStart, lt: currentStart }, status: 'COMPLETED' }, _avg: { duration: true } }),
+    prisma.agent.count({ where: { isActive: true } }),
   ])
+
+  function calcTrend(current: number, previous: number): number {
+    if (previous === 0) return current > 0 ? 100 : 0
+    return Math.round(((current - previous) / previous) * 100 * 10) / 10
+  }
+
+  const currentCost = currentPeriodCostAgg._sum.cost ?? 0
+  const previousCost = previousPeriodCostAgg._sum.cost ?? 0
+  const currentAvgDur = currentPeriodDuration._avg.duration ?? 0
+  const previousAvgDur = previousPeriodDuration._avg.duration ?? 0
+  const currentSuccessRate = currentPeriodCalls > 0 ? Math.round((currentPeriodSuccessful / currentPeriodCalls) * 100) : 0
+  const previousSuccessRate = previousPeriodCalls > 0 ? Math.round((previousPeriodSuccessful / previousPeriodCalls) * 100) : 0
 
   return {
     totalCalls,
@@ -57,18 +100,51 @@ export async function getStats() {
     todayCost: todayCostAgg._sum.cost ?? 0,
     avgDuration: Math.round(avgDurationAgg._avg.duration ?? 0),
     recentCalls,
+    totalAgents,
     successRate:
       todayCalls > 0
         ? Math.round((todaySuccessful / todayCalls) * 100)
         : 0,
+    // Period comparison
+    period: {
+      days: periodDays,
+      current: {
+        calls: currentPeriodCalls,
+        successful: currentPeriodSuccessful,
+        cost: currentCost,
+        avgDuration: Math.round(currentAvgDur),
+        successRate: currentSuccessRate,
+      },
+      previous: {
+        calls: previousPeriodCalls,
+        successful: previousPeriodSuccessful,
+        cost: previousCost,
+        avgDuration: Math.round(previousAvgDur),
+        successRate: previousSuccessRate,
+      },
+      trends: {
+        calls: calcTrend(currentPeriodCalls, previousPeriodCalls),
+        successful: calcTrend(currentPeriodSuccessful, previousPeriodSuccessful),
+        cost: calcTrend(currentCost, previousCost),
+        avgDuration: calcTrend(currentAvgDur, previousAvgDur),
+        successRate: calcTrend(currentSuccessRate, previousSuccessRate),
+      },
+    },
+    updatedAt: new Date().toISOString(),
   }
 }
 
-export async function getChartData() {
-  const days = 7
-  const labels: string[] = []
-  const successful: number[] = []
-  const failed: number[] = []
+export async function getChartData(period: string = '7d') {
+  const days = period === '1d' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 7
+
+  const result: Array<{
+    date: string
+    total: number
+    successful: number
+    failed: number
+    previousTotal: number
+    previousSuccessful: number
+  }> = []
 
   for (let i = days - 1; i >= 0; i--) {
     const start = new Date()
@@ -78,32 +154,43 @@ export async function getChartData() {
     const end = new Date(start)
     end.setDate(end.getDate() + 1)
 
+    // Previous period comparison day
+    const prevStart = new Date(start)
+    prevStart.setDate(prevStart.getDate() - days)
+    const prevEnd = new Date(prevStart)
+    prevEnd.setDate(prevEnd.getDate() + 1)
+
     const dayLabel = start.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     })
-    labels.push(dayLabel)
 
-    const [successCount, failCount] = await Promise.all([
+    const [successCount, failCount, prevTotal, prevSuccess] = await Promise.all([
       prisma.call.count({
-        where: {
-          startedAt: { gte: start, lt: end },
-          status: 'COMPLETED',
-        },
+        where: { startedAt: { gte: start, lt: end }, status: 'COMPLETED' },
       }),
       prisma.call.count({
-        where: {
-          startedAt: { gte: start, lt: end },
-          status: { in: ['FAILED', 'NO_ANSWER', 'BUSY'] },
-        },
+        where: { startedAt: { gte: start, lt: end }, status: { in: ['FAILED', 'NO_ANSWER', 'BUSY'] } },
+      }),
+      prisma.call.count({
+        where: { startedAt: { gte: prevStart, lt: prevEnd } },
+      }),
+      prisma.call.count({
+        where: { startedAt: { gte: prevStart, lt: prevEnd }, status: 'COMPLETED' },
       }),
     ])
 
-    successful.push(successCount)
-    failed.push(failCount)
+    result.push({
+      date: dayLabel,
+      total: successCount + failCount,
+      successful: successCount,
+      failed: failCount,
+      previousTotal: prevTotal,
+      previousSuccessful: prevSuccess,
+    })
   }
 
-  return { labels, successful, failed }
+  return result
 }
 
 export async function getCampaignPerformance(campaignId: string) {

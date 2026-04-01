@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getStats } from '@/lib/services/analytics-service'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const stats = await getStats()
+    const period = request.nextUrl.searchParams.get('period') || '7d'
+    const stats = await getStats(period)
     return NextResponse.json(stats, {
       headers: { 'Cache-Control': 'private, max-age=10' },
     })

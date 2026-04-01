@@ -4,16 +4,18 @@ import { checkCampaignCompletion } from '@/lib/services/webhook-service'
 
 export async function listCampaigns(params: {
   status?: string
+  agentId?: string
   page?: number
   limit?: number
 }) {
-  const { status, page = 1, limit = 50 } = params
+  const { status, agentId, page = 1, limit = 50 } = params
 
   const where = {
     userId: 'default-user',
     ...(status
       ? { status: status as 'DRAFT' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'CANCELLED' | 'SCHEDULED' }
       : {}),
+    ...(agentId ? { agentId } : {}),
   }
 
   const [campaigns, total] = await Promise.all([

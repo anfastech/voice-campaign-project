@@ -2,8 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Plus, Bot, Trash2, Phone, Mic2, Thermometer, Clock, Sparkles, Link2 } from 'lucide-react'
-import { PROVIDER_META } from '@/lib/providers/types'
+import { Plus, Bot, Trash2, Phone, Mic2, Thermometer, Clock, Sparkles, Link2, BarChart2 } from 'lucide-react'
 
 export default function AgentsPage() {
   const queryClient = useQueryClient()
@@ -70,7 +69,7 @@ export default function AgentsPage() {
             No AI agents yet
           </h3>
           <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
-            Create your first voice agent powered by ElevenLabs.
+            Create your first voice agent.
           </p>
           <Link href="/agents/new">
             <button
@@ -88,9 +87,6 @@ export default function AgentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {agents.map((agent: any) => {
-            const provider = agent.provider || 'ELEVENLABS'
-            const providerMeta = PROVIDER_META[provider] || PROVIDER_META.ELEVENLABS
-
             return (
               <div
                 key={agent.id}
@@ -106,11 +102,11 @@ export default function AgentsPage() {
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{
-                        background: providerMeta.bg,
-                        border: `1px solid ${providerMeta.color}30`,
+                        background: 'oklch(0.49 0.263 281 / 10%)',
+                        border: '1px solid oklch(0.49 0.263 281 / 30%)',
                       }}
                     >
-                      <Bot className="w-5 h-5" style={{ color: providerMeta.color }} />
+                      <Bot className="w-5 h-5" style={{ color: 'oklch(0.49 0.263 281)' }} />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--foreground)' }}>
@@ -118,32 +114,21 @@ export default function AgentsPage() {
                       </h3>
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                          style={{ background: providerMeta.bg, color: providerMeta.color }}
-                        >
-                          {providerMeta.label}
-                        </span>
-                        <span
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded-md uppercase"
                           style={{ background: 'oklch(0.6 0.19 220 / 10%)', color: 'oklch(0.5 0.19 220)' }}
                         >
                           {agent.language}
                         </span>
                         {agent.elevenLabsAgentId ? (
-                          <span
-                            className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                            style={{ background: 'oklch(0.55 0.215 163 / 10%)', color: 'oklch(0.45 0.215 163)' }}
-                            title={`Synced: ${agent.elevenLabsAgentId}`}
-                          >
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                            style={{ background: 'oklch(0.55 0.215 163 / 10%)', color: 'oklch(0.45 0.215 163)' }}>
                             <Link2 className="w-2.5 h-2.5" />
-                            Synced
+                            Deployed
                           </span>
                         ) : (
-                          <span
-                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                            style={{ background: 'oklch(0.72 0.18 68 / 10%)', color: 'oklch(0.62 0.18 68)' }}
-                          >
-                            Not synced
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                            style={{ background: 'oklch(0.72 0.18 68 / 10%)', color: 'oklch(0.62 0.18 68)' }}>
+                            Draft
                           </span>
                         )}
                       </div>
@@ -176,7 +161,7 @@ export default function AgentsPage() {
                     className="flex-1 flex flex-col items-center py-2.5"
                     style={{ borderRight: '1px solid var(--border)' }}
                   >
-                    <Phone className="w-3 h-3 mb-1" style={{ color: providerMeta.color }} />
+                    <Phone className="w-3 h-3 mb-1" style={{ color: 'oklch(0.49 0.263 281)' }} />
                     <span className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>
                       {agent._count?.calls ?? 0}
                     </span>
@@ -184,6 +169,20 @@ export default function AgentsPage() {
                       Calls
                     </span>
                   </div>
+                  {agent._count?.campaigns != null && (
+                    <div
+                      className="flex-1 flex flex-col items-center py-2.5"
+                      style={{ borderRight: '1px solid var(--border)' }}
+                    >
+                      <BarChart2 className="w-3 h-3 mb-1" style={{ color: 'oklch(0.65 0.22 310)' }} />
+                      <span className="text-xs font-bold" style={{ color: 'var(--foreground)' }}>
+                        {agent._count.campaigns}
+                      </span>
+                      <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>
+                        Camps
+                      </span>
+                    </div>
+                  )}
                   <div
                     className="flex-1 flex flex-col items-center py-2.5"
                     style={{ borderRight: '1px solid var(--border)' }}
@@ -221,7 +220,7 @@ export default function AgentsPage() {
                     </span>
                   </div>
                   <p
-                    className="text-[11px] font-mono line-clamp-2 leading-relaxed"
+                    className="text-xs font-mono line-clamp-3 leading-relaxed"
                     style={{ color: 'var(--muted-foreground)' }}
                   >
                     {agent.systemPrompt}

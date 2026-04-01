@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CampaignStatusBadge } from '@/components/campaigns/CampaignStatusBadge'
 import { TranscriptModal } from '@/components/calls/TranscriptModal'
 import {
-  ArrowLeft, Play, Pause, Phone, CheckCircle, XCircle, DollarSign, PhoneOff, Ban, Users, FileText, Sparkles, RefreshCw
+  ArrowLeft, Play, Pause, Phone, CheckCircle, XCircle, DollarSign, PhoneOff, Ban, Users, FileText, Sparkles, RefreshCw, Copy
 } from 'lucide-react'
 import { formatCurrency, formatDuration, formatDate } from '@/lib/utils'
 
@@ -119,7 +119,7 @@ export default function CampaignDetailPage() {
       liveStatusTimerRef.current = setInterval(() => {
         refetchLiveStatus()
       }, 10_000)
-      // Auto-sync: poll ElevenLabs every 30s while calls may be active
+      // Auto-sync: poll provider every 30s
       autoSyncTimerRef.current = setInterval(() => {
         syncMutation.mutate()
       }, 30_000)
@@ -284,6 +284,20 @@ export default function CampaignDetailPage() {
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
+          {/* Clone button */}
+          <button
+            onClick={async () => {
+              const res = await fetch(`/api/campaigns/${id}/clone`, { method: 'POST' })
+              const data = await res.json()
+              if (data.id) router.push(`/campaigns/${data.id}`)
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+          >
+            <Copy className="w-3 h-3" />
+            Clone
+          </button>
+
           {/* Manual Sync button */}
           {(campaign.status === 'RUNNING') && (
             <button
@@ -400,6 +414,35 @@ export default function CampaignDetailPage() {
           {Math.round(progress)}% complete
         </p>
       </div>
+
+      {/* Campaign Funnel */}
+      {campaign.totalContacts > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Campaign Funnel</p>
+          <div className="flex items-center gap-2">
+            {[
+              { label: 'Total', value: campaign.totalContacts, color: 'oklch(0.49 0.263 281)', bg: 'oklch(0.49 0.263 281 / 12%)' },
+              { label: 'Reached', value: campaign.completedCalls + campaign.failedCalls + noAnswerCount, color: 'oklch(0.6 0.19 220)', bg: 'oklch(0.6 0.19 220 / 12%)' },
+              { label: 'Answered', value: campaign.completedCalls + campaign.failedCalls, color: 'oklch(0.72 0.18 68)', bg: 'oklch(0.72 0.18 68 / 12%)' },
+              { label: 'Successful', value: campaign.successfulCalls, color: 'oklch(0.55 0.215 163)', bg: 'oklch(0.55 0.215 163 / 12%)' },
+            ].map((step, i, arr) => {
+              const pct = campaign.totalContacts > 0 ? Math.round((step.value / campaign.totalContacts) * 100) : 0
+              return (
+                <div key={step.label} className="flex items-center gap-2 flex-1">
+                  <div className="flex-1 rounded-xl p-3 text-center" style={{ background: step.bg }}>
+                    <p className="text-2xl font-bold tabular-nums" style={{ color: step.color }}>{step.value}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mt-1" style={{ color: step.color }}>{step.label}</p>
+                    <p className="text-[10px] tabular-nums" style={{ color: 'var(--muted-foreground)' }}>{pct}%</p>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>&rarr;</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Campaign Insights */}
       {completedCalls >= 2 && (

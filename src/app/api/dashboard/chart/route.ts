@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getChartData } from '@/lib/services/analytics-service'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const chartData = await getChartData()
+    const period = request.nextUrl.searchParams.get('period') || '7d'
+    const chartData = await getChartData(period)
     return NextResponse.json(chartData, {
       headers: { 'Cache-Control': 'private, max-age=15' },
     })

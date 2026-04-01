@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const result = await listCampaigns({
       status: searchParams.get('status') || undefined,
+      agentId: searchParams.get('agentId') || undefined,
       page: parseInt(searchParams.get('page') || '1'),
       limit: parseInt(searchParams.get('limit') || '50'),
     })

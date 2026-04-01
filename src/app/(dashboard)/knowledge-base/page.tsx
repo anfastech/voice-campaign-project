@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Plus, Trash2, Link, FileText, Type, CheckCircle, XCircle, Clock, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
+import { BookOpen, Plus, Trash2, Link, FileText, Type, CheckCircle, XCircle, Clock, Loader2, AlertCircle, RefreshCw, Bot, ChevronDown } from 'lucide-react'
 
 type KBDoc = {
   id: string
@@ -15,7 +15,13 @@ type KBDoc = {
   folderName?: string | null
   syncStatus: string
   syncError?: string | null
+  agentId?: string | null
   createdAt: string
+}
+
+type Agent = {
+  id: string
+  name: string
 }
 
 const TYPE_ICONS = {
@@ -73,7 +79,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
             ? doc.syncError
             : doc.type === 'FILE'
               ? 'Delete and re-add this document to retry.'
-              : 'ElevenLabs sync failed. Check your API key or try again.'}
+              : 'Sync failed. Check your API key or try again.'}
         </p>
       </div>
     )
@@ -113,10 +119,27 @@ export default function KnowledgeBasePage() {
   const [fileFolderName, setFileFolderName] = useState('')
   const [fileInput, setFileInput] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [agentFilter, setAgentFilter] = useState<string>('all')
+  const [assignAgentId, setAssignAgentId] = useState<string>('')
+
+  // Fetch agents for the filter dropdown and doc assignment
+  const { data: agentsData } = useQuery<{ agents: Agent[] }>({
+    queryKey: ['agents-list'],
+    queryFn: () => fetch('/api/agents').then((r) => r.json()),
+    staleTime: 60000,
+  })
+  const agents: Agent[] = agentsData?.agents || []
+
+  // Build KB fetch URL based on agentFilter
+  const kbUrl = agentFilter === 'all'
+    ? '/api/knowledge-base'
+    : agentFilter === 'unassigned'
+      ? '/api/knowledge-base'
+      : `/api/knowledge-base?agentId=${agentFilter}`
 
   const { data, isLoading } = useQuery({
-    queryKey: ['knowledge-base'],
-    queryFn: () => fetch('/api/knowledge-base').then((r) => r.json()),
+    queryKey: ['knowledge-base', agentFilter],
+    queryFn: () => fetch(kbUrl).then((r) => r.json()),
   })
 
   const createMutation = useMutation({
@@ -141,6 +164,7 @@ export default function KnowledgeBasePage() {
       setFileName('')
       setFileFolderName('')
       setFileInput(null)
+      setAssignAgentId('')
       setError(null)
     },
     onError: (err: Error) => setError(err.message),
@@ -160,18 +184,31 @@ export default function KnowledgeBasePage() {
 
   const handleSubmit = () => {
     setError(null)
+    const agentIdToAssign = assignAgentId || undefined
     if (activeTab === 'TEXT') {
       if (!textForm.name.trim() || !textForm.content.trim()) {
         setError('Name and content are required')
         return
       }
-      createMutation.mutate({ type: 'TEXT', name: textForm.name, content: textForm.content, folderName: textForm.folderName || undefined })
+      createMutation.mutate({
+        type: 'TEXT',
+        name: textForm.name,
+        content: textForm.content,
+        folderName: textForm.folderName || undefined,
+        agentId: agentIdToAssign,
+      })
     } else if (activeTab === 'URL') {
       if (!urlForm.name.trim() || !urlForm.url.trim()) {
         setError('Name and URL are required')
         return
       }
-      createMutation.mutate({ type: 'URL', name: urlForm.name, url: urlForm.url, folderName: urlForm.folderName || undefined })
+      createMutation.mutate({
+        type: 'URL',
+        name: urlForm.name,
+        url: urlForm.url,
+        folderName: urlForm.folderName || undefined,
+        agentId: agentIdToAssign,
+      })
     } else if (activeTab === 'FILE') {
       if (!fileInput || !fileName.trim()) {
         setError('Name and file are required')
@@ -181,27 +218,70 @@ export default function KnowledgeBasePage() {
       fd.append('name', fileName)
       fd.append('file', fileInput)
       if (fileFolderName.trim()) fd.append('folderName', fileFolderName.trim())
+      if (agentIdToAssign) fd.append('agentId', agentIdToAssign)
       createMutation.mutate(fd)
     }
   }
 
-  const docs: KBDoc[] = data?.documents || []
+  const allDocs: KBDoc[] = data?.documents || []
+
+  // Client-side filter for 'unassigned'
+  const docs: KBDoc[] = agentFilter === 'unassigned'
+    ? allDocs.filter((doc) => !doc.agentId)
+    : allDocs
+
+  // Agent lookup map for badges
+  const agentMap = new Map(agents.map((a) => [a.id, a.name]))
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'oklch(0.6 0.19 220 / 12%)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
-        >
-          <BookOpen className="w-4 h-4" style={{ color: 'oklch(0.6 0.19 220)' }} />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: 'oklch(0.6 0.19 220 / 12%)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
+          >
+            <BookOpen className="w-4 h-4" style={{ color: 'oklch(0.6 0.19 220)' }} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Knowledge Base</h1>
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              Documents agents can reference during calls
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Knowledge Base</h1>
-          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            Documents agents can reference during calls
-          </p>
+
+        {/* Agent filter dropdown */}
+        <div className="relative flex-shrink-0">
+          <div className="relative">
+            <Bot
+              className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--muted-foreground)' }}
+            />
+            <select
+              value={agentFilter}
+              onChange={(e) => setAgentFilter(e.target.value)}
+              className="pl-8 pr-8 py-2 rounded-xl text-xs font-medium outline-none appearance-none cursor-pointer"
+              style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
+              }}
+            >
+              <option value="all">All Documents</option>
+              <option value="unassigned">Unassigned</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--muted-foreground)' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -333,6 +413,36 @@ export default function KnowledgeBasePage() {
           </div>
         )}
 
+        {/* Assign to Agent dropdown */}
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            Assign to Agent (optional)
+          </label>
+          <div className="relative">
+            <Bot
+              className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--muted-foreground)' }}
+            />
+            <select
+              value={assignAgentId}
+              onChange={(e) => setAssignAgentId(e.target.value)}
+              className="w-full pl-8 pr-8 py-2 rounded-xl text-sm outline-none appearance-none cursor-pointer"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: assignAgentId ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+            >
+              <option value="">No agent — global document</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--muted-foreground)' }}
+            />
+          </div>
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 text-xs" style={{ color: 'oklch(0.52 0.245 15)' }}>
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -379,6 +489,7 @@ export default function KnowledgeBasePage() {
           <div style={{ background: 'var(--card)' }}>
             {docs.map((doc, idx) => {
               const Icon = TYPE_ICONS[doc.type]
+              const agentName = doc.agentId ? agentMap.get(doc.agentId) : null
               return (
                 <div
                   key={doc.id}
@@ -402,6 +513,15 @@ export default function KnowledgeBasePage() {
                           style={{ background: 'oklch(0.6 0.19 220 / 10%)', color: 'oklch(0.6 0.19 220)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
                         >
                           {doc.folderName}
+                        </span>
+                      )}
+                      {agentName && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0"
+                          style={{ background: 'oklch(0.49 0.263 281 / 10%)', color: 'oklch(0.49 0.263 281)', border: '1px solid oklch(0.49 0.263 281 / 20%)' }}
+                        >
+                          <Bot className="w-2.5 h-2.5" />
+                          {agentName}
                         </span>
                       )}
                     </div>

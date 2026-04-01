@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Mic, MicOff, PhoneOff, Phone, Radio } from 'lucide-react'
-import { PROVIDER_META } from '@/lib/providers/types'
 
 type CallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error'
 
@@ -277,8 +276,8 @@ export default function AgentTestPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   const agentAny = agent as any
-  const provider = agentAny?.provider || 'ULTRAVOX'
-  const meta = PROVIDER_META[provider] || PROVIDER_META.ULTRAVOX
+  const accentColor = 'oklch(0.49 0.263 281)'
+  const accentBg = 'oklch(0.49 0.263 281 / 10%)'
 
   const isActive = status === 'active'
   const isConnecting = status === 'connecting'
@@ -315,9 +314,9 @@ export default function AgentTestPage() {
           {agentAny && (
             <span
               className="ml-auto text-[10px] font-bold px-2 py-1 rounded-lg"
-              style={{ background: meta.bg, color: meta.color }}
+              style={{ background: accentBg, color: accentColor }}
             >
-              {meta.label}
+              AI Agent
             </span>
           )}
         </div>
@@ -327,8 +326,8 @@ export default function AgentTestPage() {
           className="rounded-2xl overflow-hidden"
           style={{
             background: 'var(--card)',
-            border: isActive ? `1px solid ${meta.color}40` : '1px solid var(--border)',
-            boxShadow: isActive ? `0 0 0 3px ${meta.color}10` : 'none',
+            border: isActive ? `1px solid ${accentColor}` : '1px solid var(--border)',
+            boxShadow: isActive ? `0 0 0 3px ${accentBg}` : 'none',
             transition: 'all 0.4s ease',
           }}
         >
@@ -339,22 +338,22 @@ export default function AgentTestPage() {
           >
             <Radio
               className="w-3.5 h-3.5"
-              style={{ color: isActive ? meta.color : 'var(--muted-foreground)' }}
+              style={{ color: isActive ? accentColor : 'var(--muted-foreground)' }}
             />
             <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
-              {status === 'idle' ? `${meta.label} ready` :
+              {status === 'idle' ? 'Ready' :
                status === 'connecting' ? 'Connecting…' :
-               status === 'active' ? `Live — ${meta.label}` :
+               status === 'active' ? 'Live' :
                status === 'ended' ? 'Call ended' : 'Error'}
             </span>
             {isActive && (
               <span
                 className="ml-auto flex items-center gap-1.5 text-[10px] font-semibold"
-                style={{ color: meta.color }}
+                style={{ color: accentColor }}
               >
                 <span
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
-                  style={{ background: meta.color }}
+                  style={{ background: accentColor }}
                 />
                 LIVE
               </span>
@@ -366,7 +365,7 @@ export default function AgentTestPage() {
             className="flex flex-col items-center justify-center py-12 px-6"
             style={{
               background: isActive
-                ? `linear-gradient(180deg, ${meta.bg} 0%, transparent 100%)`
+                ? `linear-gradient(180deg, ${accentBg} 0%, transparent 100%)`
                 : 'var(--card)',
               transition: 'background 0.5s ease',
             }}
@@ -375,20 +374,20 @@ export default function AgentTestPage() {
             <div
               className="w-20 h-20 rounded-2xl flex items-center justify-center mb-8 transition-all duration-300"
               style={{
-                background: isActive ? meta.bg : 'var(--muted)',
-                border: isActive ? `2px solid ${meta.color}` : '2px solid var(--border)',
-                boxShadow: isActive ? `0 0 24px ${meta.color}30` : 'none',
+                background: isActive ? accentBg : 'var(--muted)',
+                border: isActive ? `2px solid ${accentColor}` : '2px solid var(--border)',
+                boxShadow: isActive ? `0 0 24px ${accentBg}` : 'none',
               }}
             >
               {isConnecting ? (
                 <span
                   className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin"
-                  style={{ borderColor: `${meta.color}30`, borderTopColor: meta.color }}
+                  style={{ borderColor: accentBg, borderTopColor: accentColor }}
                 />
               ) : (
                 <Radio
                   className="w-9 h-9 transition-all"
-                  style={{ color: isActive ? meta.color : 'var(--muted-foreground)' }}
+                  style={{ color: isActive ? accentColor : 'var(--muted-foreground)' }}
                 />
               )}
             </div>
@@ -477,7 +476,7 @@ export default function AgentTestPage() {
               {isActive && (
                 <span
                   className="ml-auto w-1.5 h-1.5 rounded-full animate-pulse"
-                  style={{ background: meta.color }}
+                  style={{ background: accentColor }}
                 />
               )}
             </div>
@@ -504,8 +503,8 @@ export default function AgentTestPage() {
                     <div
                       className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
                       style={{
-                        background: line.role === 'agent' ? meta.bg : 'oklch(0.6 0.19 220 / 10%)',
-                        color: line.role === 'agent' ? meta.color : 'oklch(0.5 0.19 220)',
+                        background: line.role === 'agent' ? accentBg : 'oklch(0.6 0.19 220 / 10%)',
+                        color: line.role === 'agent' ? accentColor : 'oklch(0.5 0.19 220)',
                       }}
                     >
                       {line.role === 'agent' ? 'A' : 'Y'}
@@ -513,7 +512,7 @@ export default function AgentTestPage() {
                     <div
                       className="rounded-xl px-3 py-2 text-xs leading-relaxed max-w-[80%]"
                       style={{
-                        background: line.role === 'agent' ? meta.bg : 'oklch(0.6 0.19 220 / 8%)',
+                        background: line.role === 'agent' ? accentBg : 'oklch(0.6 0.19 220 / 8%)',
                         color: 'var(--foreground)',
                       }}
                     >
@@ -538,7 +537,6 @@ export default function AgentTestPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Agent', value: agentAny.name },
-                { label: 'Provider', value: meta.label },
                 { label: 'Voice', value: agentAny.voice || 'Default' },
                 { label: 'Language', value: agentAny.language?.toUpperCase() || 'EN' },
               ].map(({ label, value }) => (
@@ -550,18 +548,6 @@ export default function AgentTestPage() {
                 </div>
               ))}
             </div>
-            {provider === 'VAPI' && !process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY && (
-              <div
-                className="rounded-xl px-3 py-2.5 text-xs"
-                style={{
-                  background: 'oklch(0.72 0.18 68 / 10%)',
-                  border: '1px solid oklch(0.72 0.18 68 / 25%)',
-                  color: 'oklch(0.55 0.18 68)',
-                }}
-              >
-                ⚠️ Add <code className="font-mono">NEXT_PUBLIC_VAPI_PUBLIC_KEY</code> to <code className="font-mono">.env.local</code> to enable VAPI browser calling.
-              </div>
-            )}
           </div>
         )}
       </div>

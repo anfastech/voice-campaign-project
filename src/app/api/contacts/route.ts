@@ -13,10 +13,15 @@ const contactSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
+    const doNotCallParam = searchParams.get('doNotCall')
     const result = await listContacts({
       search: searchParams.get('search') || undefined,
       page: parseInt(searchParams.get('page') || '1'),
       limit: parseInt(searchParams.get('limit') || '100'),
+      groupId: searchParams.get('groupId') || undefined,
+      agentId: searchParams.get('agentId') || undefined,
+      tag: searchParams.get('tag') || undefined,
+      doNotCall: doNotCallParam === null ? undefined : doNotCallParam === 'true',
     })
     return NextResponse.json(result)
   } catch (error) {

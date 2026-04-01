@@ -6,10 +6,18 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, CheckCircle, Search, Bot, Users, Settings2, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+interface ContactGroup {
+  id: string
+  name: string
+  _count: { members: number }
+}
+
 export default function NewCampaignPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [search, setSearch] = useState('')
+  const [contactGroupFilter, setContactGroupFilter] = useState('')
+  const [contactAgentFilter, setContactAgentFilter] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -26,9 +34,19 @@ export default function NewCampaignPage() {
   })
   const agents = Array.isArray(agentsRaw) ? agentsRaw : []
 
+  const { data: groupsRaw = [] } = useQuery<ContactGroup[]>({
+    queryKey: ['contact-groups'],
+    queryFn: () => fetch('/api/contact-groups').then((r) => r.json()),
+  })
+  const contactGroups = Array.isArray(groupsRaw) ? groupsRaw : []
+
+  const contactQs = new URLSearchParams({ limit: '1000' })
+  if (contactGroupFilter) contactQs.set('groupId', contactGroupFilter)
+  if (contactAgentFilter) contactQs.set('agentId', contactAgentFilter)
+
   const { data: contactsRaw } = useQuery({
-    queryKey: ['contacts'],
-    queryFn: () => fetch('/api/contacts?limit=1000').then((r) => r.json()),
+    queryKey: ['contacts', contactGroupFilter, contactAgentFilter],
+    queryFn: () => fetch(`/api/contacts?${contactQs.toString()}`).then((r) => r.json()),
   })
   const contacts = useMemo(() => {
     if (Array.isArray(contactsRaw?.contacts)) return contactsRaw.contacts
@@ -297,21 +315,50 @@ export default function NewCampaignPage() {
             </span>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
-            <input
-              type="text"
-              placeholder="Search contacts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
-              style={{
-                background: 'var(--input)',
-                border: '1px solid var(--border)',
-                color: 'var(--foreground)',
-              }}
-            />
+          {/* Filters */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+              <input
+                type="text"
+                placeholder="Search contacts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                style={{
+                  background: 'var(--input)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            </div>
+            {contactGroups.length > 0 && (
+              <select
+                value={contactGroupFilter}
+                onChange={(e) => setContactGroupFilter(e.target.value)}
+                className="text-xs px-3 py-2 rounded-xl outline-none"
+                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              >
+                <option value="">All Groups</option>
+                {contactGroups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name} ({g._count.members})</option>
+                ))}
+              </select>
+            )}
+            {agents.length > 0 && (
+              <select
+                value={contactAgentFilter}
+                onChange={(e) => setContactAgentFilter(e.target.value)}
+                className="text-xs px-3 py-2 rounded-xl outline-none"
+                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              >
+                <option value="">All Agents</option>
+                <option value="shared">Shared</option>
+                {agents.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Select All / Clear */}

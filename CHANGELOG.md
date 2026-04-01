@@ -4,6 +4,151 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Contacts: Groups, Agent Assignment, Sidebar
+
+- **Schema** (`prisma/schema.prisma`) — Added three new models: `ContactGroup` (folder-like groups per user), `ContactGroupMember` (many-to-many contact↔group), `ContactAgentAssignment` (many-to-many contact↔agent). Added reverse relations to `Contact`, `Agent`, and `User`. Applied via `npx prisma db push`.
+- **Contact Group Service** (`src/lib/services/contact-group-service.ts`) — New service with `listContactGroups`, `createContactGroup`, `updateContactGroup`, `deleteContactGroup`, `addContactsToGroup`, `removeContactsFromGroup`.
+- **Contact Service** (`src/lib/services/contact-service.ts`) — Extended `listContacts` with `groupId`, `agentId`, `tag`, `doNotCall` filters (fixed previously broken tag/DNC params). `getContact` and `listContacts` now include `groupMemberships` and `agentAssignments` in their includes. `deleteContact` now cleans up group memberships and agent assignments before deleting. Added `assignContactsToAgent` and `unassignContactsFromAgent` helpers.
+- **API Routes** — Four new routes: `GET/POST /api/contact-groups`, `PATCH/DELETE /api/contact-groups/[id]`, `POST/DELETE /api/contact-groups/[id]/members`, `POST /api/contacts/bulk` (bulk ops: addToGroup, removeFromGroup, assignAgent, unassignAgent, delete, markDnc, unmarkDnc). Updated `GET /api/contacts` to pass `groupId`, `agentId`, `tag`, `doNotCall` params through to the service.
+- **Sidebar** (`src/components/layout/Sidebar.tsx`) — Added "Contacts" as 6th nav item (position 3, between Conversations and Knowledge Base) with `Users` icon.
+- **ContactGroupSidebar** (`src/components/contacts/ContactGroupSidebar.tsx`) — Left panel (220px) showing "All Contacts", "Shared", and each group with member count, plus inline rename/delete and a "New Group" button.
+- **GroupManageDialog** (`src/components/contacts/GroupManageDialog.tsx`) — Modal for creating or renaming a contact group (name + description).
+- **AgentAssignDialog** (`src/components/contacts/AgentAssignDialog.tsx`) — Modal for assigning a selection of contacts to a specific agent.
+- **BulkActionsBar** (`src/components/contacts/BulkActionsBar.tsx`) — Floating bottom bar that appears when contacts are selected; supports Add to Group, Assign Agent, Mark DNC, and Delete in bulk.
+- **Contacts Page** (`src/app/(dashboard)/contacts/page.tsx`) — Full rewrite: group sidebar on the left, agent filter dropdown in toolbar, checkbox column for bulk selection, Groups column (max 2 chips + "+N"), Agent column ("Shared" badge or agent name chips), bulk actions bar, contact detail drawer shows groups and agent assignments.
+- **Campaign Creation** (`src/app/(dashboard)/campaigns/new/page.tsx`) — Step 3 (Select Contacts) now shows Group and Agent filter dropdowns above the contact list so users can pre-filter by group or agent assignment.
+
+### Fixed — Contacts: Tag and DNC Filters
+
+- `listContacts` in `contact-service.ts` previously ignored `tag` and `doNotCall` params passed from the API route. Both filters are now correctly applied (`tags: { has: tag }` and `doNotCall: boolean`).
+
+### Fixed — Phase 0: Prisma Schema Mismatch
+
+- **DB schema synced** — Ran `npx prisma db push` to align the database with `prisma/schema.prisma`. Columns `backchannel`, `voiceId`, `evaluationCriteria`, `dataCollection`, `interruptionSensitivity`, `ambientSound` on `Agent` and `folderName`, `folderElevenLabsId`, `syncStatus`, `syncError` on `KnowledgeBaseDocument` now exist in the database, resolving P2022 errors on the agents page.
+
+### Added — Phase 3.1-3.4: Per-Agent Knowledge Base (Backend)
+
+- **Schema** (`prisma/schema.prisma`) — Added `agentId String?` and `agent Agent? @relation(...)` to `KnowledgeBaseDocument` model with `@@index([agentId])`. Added `knowledgeBaseDocuments KnowledgeBaseDocument[]` reverse relation to `Agent` model. Applied via `npx prisma db push`.
+- **KB service** (`src/lib/services/knowledge-base-service.ts`) — `listDocuments(userId, agentId?)` now accepts optional `agentId` filter. `addTextDocument`, `addUrlDocument`, `addFileDocument` each accept optional `agentId` and pass it to `prisma.create()`.
+- **Agent service** (`src/lib/services/agent-service.ts`) — `createAgent()` and `syncAgent()` now scope KB doc queries to `agentId: agent.id` instead of all user docs.
+- **KB API** (`src/app/api/knowledge-base/route.ts`) — GET accepts `?agentId=X` query param; POST accepts optional `agentId` in request body.
+- **Agent KB API** (`src/app/api/agents/[id]/knowledge-base/route.ts`) — New GET endpoint returning KB documents scoped to a specific agent.
+
+### Changed — Phase 5: Settings Simplification
+
+- **Settings API** (`src/app/api/settings/route.ts`) — Replaced named provider objects (ElevenLabs, Ultravox, VAPI, Anthropic, Twilio) with generic `integrations` object containing `voiceEngine`, `aiModel`, and `telephony` keys with just a `connected` boolean each.
+- **Settings page** (`src/app/(dashboard)/settings/page.tsx`) — Replaced 5 named provider cards with 3 generic integration cards: "Voice Engine", "AI Model", "Telephony". Removed "Environment" section that named providers. Merged "Appearance" (theme toggle) and "Notifications" sections from the former account page.
+- **Account redirect** (`src/app/(dashboard)/account/page.tsx`) — `/account` now server-redirects to `/settings`.
+
+### Changed — Phase 4: Agent Pages — Prompt-First UX Overhaul
+
+#### 4.1 Agent Creation Form (`src/app/(dashboard)/agents/new/page.tsx`)
+- Reordered manual form sections: **Mode toggle → Identity → System Prompt → First Message → Voice & Style → Knowledge Base → Advanced**.
+- **System Prompt** is now the most prominent section: highlighted with a thicker purple border (`2px solid`) and outer glow, `min-height: 200px`, bold heading, and a "Required" pill badge.
+- **Identity** section now lays Name and Description side-by-side in a 2-column grid.
+- **Voice & Style** section merges the former "Voice & Language" and "Advanced Settings" and "Voice Behavior" sections into one card: voice picker (from `VOICE_OPTIONS`), language, temperature slider, max duration, interruption sensitivity, backchannel toggle, and ambient sound.
+- **Knowledge Base** section replaced the old toggle + KB count card with a placeholder note ("Documents can be added from the agent detail page after creation") plus a simple `useKnowledgeBase` toggle — no longer fetches KB count here.
+- **Advanced** section (Evaluation Criteria + Data Collection) is now a collapsible disclosure collapsed by default, using `advancedOpen` state and a `ChevronDown` icon. Added `ChevronDown` to lucide-react imports.
+- Removed "ElevenLabs ConvAI Features" heading (was absent already); no "Powered by" text anywhere.
+
+#### 4.2 Agent Detail Page (`src/app/(dashboard)/agents/[id]/page.tsx`)
+- **System Prompt hero section** inserted as the first content block (before the Config card): prominent card with 2px purple border + glow, `min-height: 150px`, `max-height: 320px` overflow scroll, `text-xs font-mono` at full foreground color.
+- The old inline system prompt display inside the Config card was removed (no longer duplicated).
+- Added `BarChart2` to lucide-react imports.
+- Added **`['agent-campaigns', id]`** React Query fetching `/api/campaigns?agentId=${id}`, extracting `campaignsData.campaigns`.
+- New **Campaigns section** placed after Knowledge Base, before Agent Tools:
+  - Header with BarChart2 icon, campaign count badge, and "New Campaign" button linking to `/campaigns/new?agentId=${id}`.
+  - Per-campaign rows showing name, status badge (color-coded), and a progress bar (`calls / contacts` count).
+  - Empty state with "No campaigns yet" text and a "Create Campaign" gradient button.
+
+#### 4.3 Agent List Page (`src/app/(dashboard)/agents/page.tsx`)
+- System prompt preview: increased from `text-[11px] line-clamp-2` to **`text-xs line-clamp-3`**.
+- Added **campaign count stat** in the stats row (shows only when `agent._count?.campaigns != null`) with a BarChart2 icon.
+- Added `BarChart2` to lucide-react imports.
+
+#### API / Services
+- **`src/lib/services/agent-service.ts`** — `listAgents` now includes `campaigns: true` in `_count.select` (was only `calls`).
+- **`src/lib/services/campaign-service.ts`** — `listCampaigns` accepts optional `agentId` param and adds `{ agentId }` to the Prisma `where` clause when provided.
+- **`src/app/api/campaigns/route.ts`** — Reads `agentId` from `searchParams` and passes it to `listCampaigns`.
+
+### Changed — Phase 3.5–3.6: KB Agent Filter + Agent Detail KB Section
+
+- **Knowledge base page** (`src/app/(dashboard)/knowledge-base/page.tsx`) — Added per-agent filtering and agent assignment to the global KB document page.
+  - Added `agentFilter` state (`'all' | 'unassigned' | <agentId>`). Added `['agents-list']` React Query (fetches `/api/agents`, `staleTime: 60000`) to populate filter options.
+  - Added an **agent filter dropdown** in the page header (alongside the title) with options: "All Documents", "Unassigned", and one option per agent. When `agentFilter` is a specific agent ID, appends `?agentId=${agentFilter}` to the KB fetch URL. When `agentFilter === 'unassigned'`, fetches all docs then filters client-side by `!doc.agentId`.
+  - Query key is now `['knowledge-base', agentFilter]` so switching filters triggers a fresh fetch.
+  - Extended `KBDoc` type to include `agentId?: string | null`.
+  - Added **"Assign to Agent" dropdown** inside the Add Document form (all three tab types). Optional — defaults to none/global. Passes `agentId` in the JSON body or as a FormData field when set.
+  - Added **agent badge** on each document row: when `doc.agentId` is set, looks up the agent name from the agents list and renders a small purple badge with a Bot icon next to the doc name.
+
+- **Agent detail page** (`src/app/(dashboard)/agents/[id]/page.tsx`) — Replaced the `useKnowledgeBase` boolean toggle section with a full inline KB document management section.
+  - Added `['agent-kb', id]` React Query fetching `/api/agents/${id}/knowledge-base` (returns a flat array). Added `KBDoc` type for the response shape.
+  - Added `createDocMutation` (POST to `/api/knowledge-base` with `{ agentId: id, type, name, content/url }`) and `deleteDocMutation` (DELETE to `/api/knowledge-base/${docId}`), both invalidating `['agent-kb', id]` on success.
+  - Added KB form state: `kbFormOpen`, `kbActiveTab` (TEXT/URL), `kbTextForm`, `kbUrlForm`, `kbError`.
+  - New **Knowledge Base section** placed after the Config card and before the Custom Tools section:
+    - Header row with BookOpen icon, "Knowledge Base" title, doc count badge, and "Add Document" / "Close" toggle button.
+    - Inline add form (toggled) with TEXT/URL tab switcher, name + content/URL fields, error display, and a gradient submit button.
+    - Document list showing icon, name, type badge, date, and a delete button per row.
+    - Empty state when no documents are assigned.
+  - Removed the old `useKnowledgeBase` toggle switch card (the section that showed the boolean toggle and "Manage documents" link).
+  - Added `DOC_TYPE_ICONS` / `DOC_TYPE_LABELS` maps. Added `FileText`, `Type`, and `Link as LinkIcon` to the lucide-react imports.
+
+### Changed — Phase 2: Analytics Page — Dashboard KPI Merge
+
+- **Analytics page** (`src/app/(dashboard)/analytics/page.tsx`) — Merged dashboard KPIs into the analytics page, which now serves as the single home page (replacing the old `/dashboard` stub).
+  - Added two new React Query hooks: `['dashboard-stats', datePreset]` fetching `/api/dashboard/stats?period=X` and `['dashboard-chart', datePreset]` fetching `/api/dashboard/chart?period=X`.
+  - Added a **Dashboard KPI row** (4 `StatsCard` components) placed immediately after the date selector showing Total Calls, Successful Calls, Avg Duration, and Total Cost for the selected period, each with period-over-period trend badges sourced from `period.trends.*` on the stats API response.
+  - Added a **`ConversationChart`** component (imported from `src/components/dashboard/ConversationChart.tsx`) showing latest-vs-previous-period call volume area comparison, using `dataKey="total"` / `previousKey="previousTotal"` from the chart API.
+  - Added a **`RecentActivity`** component (imported from `src/components/dashboard/RecentActivity.tsx`) at the bottom of the page, fed `recentCalls` from the dashboard stats API.
+  - Removed unused `Calendar` import from lucide-react.
+  - All existing 6 analytics KPI cards and all charts/tables are preserved unchanged.
+
+### Changed — Phase 1.6-1.9: Provider Name Removal
+
+- **types.ts** (`src/lib/providers/types.ts`) — Added `VOICE_OPTIONS` export (mapped from `PROVIDER_VOICES.ELEVENLABS`) for generic voice list consumption without importing provider-specific identifiers.
+- **layout.tsx** (`src/app/layout.tsx`) — Metadata description no longer mentions "Ultravox, ElevenLabs, and VAPI"; changed to "AI-powered outbound voice campaign management platform".
+- **Landing page** (`src/app/page.tsx`) — Removed `providers` array and the "Integrates with" trust bar section. Hero badge changed from "Powered by Ultravox · ElevenLabs · VAPI" to "Powered by Advanced AI". Feature card description no longer names specific AI providers. Removed unused `Globe` import.
+- **Agents list page** (`src/app/(dashboard)/agents/page.tsx`) — Removed `PROVIDER_META` import. Removed `provider`/`providerMeta` variables inside agent map. Removed provider badge. Replaced dynamic provider colors with fixed generic purple (`oklch(0.49 0.263 281)`). Sync badge now shows "Deployed"/"Draft" instead of "Synced"/"Not synced". Empty state no longer mentions ElevenLabs.
+- **Agent detail page** (`src/app/(dashboard)/agents/[id]/page.tsx`) — Removed `PROVIDER_META` import, `provider`/`meta` variables, and provider badge in header. "ElevenLabs Sync Status" section renamed to "Agent Status"; status text shows "Deployed"/"Not deployed"; button label changed to "Deploy Agent" / "Re-sync". KB description changed from "ElevenLabs config" to "agent config".
+- **New agent page** (`src/app/(dashboard)/agents/new/page.tsx`) — Import changed to `VOICE_OPTIONS` from `PROVIDER_VOICES, PROVIDER_META`. Removed `provider`, `voices`, `providerMeta` variables. Voice select uses `VOICE_OPTIONS` directly. Removed "Powered by {providerMeta.label}" subtitle. Section comment renamed "ElevenLabs ConvAI Features" → "Advanced Features".
+- **Agent test page** (`src/app/(dashboard)/agents/[id]/test/page.tsx`) — Removed `PROVIDER_META` import and `provider`/`meta` variables. All `meta.color`/`meta.bg`/`meta.label` references replaced with fixed generic accent (`oklch(0.49 0.263 281)`). Provider badge shows "AI Agent". Status text and live bar no longer show provider names. Test Setup table removed "Provider" row. VAPI-specific key warning removed.
+- **Knowledge base page** (`src/app/(dashboard)/knowledge-base/page.tsx`) — Error message changed from "ElevenLabs sync failed. Check your API key or try again." to "Sync failed. Check your API key or try again."
+- **Analytics page** (`src/app/(dashboard)/analytics/page.tsx`) — Removed "Provider" column from Agent Comparison table header and body. Updated `exportAgents` CSV function accordingly. Fixed `colSpan` from 7 to 6.
+- **Campaign detail page** (`src/app/(dashboard)/campaigns/[id]/page.tsx`) — Comment `// Auto-sync: poll ElevenLabs every 30s` changed to `// Auto-sync: poll provider every 30s`.
+
+### Changed — Phase 1.1-1.5: UX Overhaul — Sidebar, Header, Navigation
+
+- **Sidebar redesigned** (`src/components/layout/Sidebar.tsx`) — Replaced 10-item nav with 5 focused items: Analytics, Conversations, Knowledge Base, Your Agents, Settings. Removed the bottom "Providers Active" status card. Active check for `/analytics` also matches `/dashboard` for redirect compatibility.
+- **Header updated** (`src/components/layout/Header.tsx`) — Removed `/dashboard`, `/workflows`, `/live` page meta entries. Added `/conversations` meta. Updated `/agents` subtitle to "Your configured AI agents". "View all activity" link now points to `/conversations`. UserMenu "Account" click now navigates to `/settings`.
+- **Conversations page created** (`src/app/(dashboard)/conversations/page.tsx`) — Full-featured call history page (copied from former calls page) with updated function name `ConversationsPage`, "conversations" count label, "Start a campaign to generate conversations." empty state, and CSV export filename `conversations-`.
+- **Dashboard redirect** (`src/app/(dashboard)/dashboard/page.tsx`) — `/dashboard` now server-redirects to `/analytics`.
+- **Calls redirect** (`src/app/(dashboard)/calls/page.tsx`) — `/calls` now server-redirects to `/conversations`.
+
+### Added — Phase 7: Account & Settings
+
+- **Settings page** (`/settings`) — API key management with masked display and show/hide toggle for ElevenLabs, Ultravox, VAPI, Anthropic, and Twilio. Webhook configuration display with event documentation. Usage dashboard showing total calls, minutes, cost, agents, campaigns, and contacts. Environment info section. (`src/app/(dashboard)/settings/page.tsx`, `src/app/api/settings/route.ts`)
+- **Account page** (`/account`) — User profile editor with name, email, timezone. Theme selector (light/dark/system) with visual previews. Notification preferences with toggle switches for campaign completion, call failures, daily digest, and weekly reports. Security section placeholder. (`src/app/(dashboard)/account/page.tsx`)
+- **Settings API** (`GET /api/settings`) — Returns provider configuration status (masked keys), webhook config, and usage aggregates from the database. (`src/app/api/settings/route.ts`)
+
+### Added — Phase 8: Real-time & Polish
+
+- **Live Monitor page** (`/live`) — Real-time call monitoring with 3-second auto-refresh polling. Shows active calls with elapsed time, running campaigns with progress bars, queued contacts count, and a recent calls feed (last 5 minutes). Status badges with live-dot animations for in-progress calls. (`src/app/(dashboard)/live/page.tsx`, `src/app/api/live/route.ts`)
+- **Notification dropdown** — Bell icon in header now opens a dropdown showing the 5 most recent call events with status icons (completed/failed/no answer), contact names, agent info, and timestamps. Links to full call history. (`src/components/layout/Header.tsx`)
+- **User menu enhanced** — Added Settings link to the user avatar dropdown menu. (`src/components/layout/Header.tsx`)
+
+### Changed — Dashboard Enhanced (chat-dash.com style)
+
+- **Period comparison** — Dashboard now supports date range selection (Today, 7D, 30D, 90D) with a tab-style period selector. All KPI cards and charts update based on selected period. (`src/app/(dashboard)/dashboard/page.tsx`)
+- **Trend percentages** — KPI cards show period-over-period trend badges with up/down arrows and color coding (green for positive, red for negative). Compares current period against the previous equivalent period. (`src/app/(dashboard)/dashboard/page.tsx`)
+- **"Latest vs Previous" comparison charts** — New `ConversationChart` component renders area charts with solid line for current period and dashed line for previous period, matching chat-dash.com's comparison visualization. Two charts: Call Volume and Successful Calls. (`src/components/dashboard/ConversationChart.tsx`)
+- **Updated timestamp with refresh** — Dashboard shows "Updated [time]" with a manual refresh button, matching chat-dash.com. (`src/app/(dashboard)/dashboard/page.tsx`)
+- **Analytics service period comparison** — `getStats()` and `getChartData()` now accept a `period` parameter and return comparison data (current vs previous period metrics and trend percentages). (`src/lib/services/analytics-service.ts`)
+- **Dashboard API routes** — `/api/dashboard/stats` and `/api/dashboard/chart` now accept `?period=7d` query parameter. (`src/app/api/dashboard/stats/route.ts`, `src/app/api/dashboard/chart/route.ts`)
+
+### Fixed
+
+- **TypeScript error in `updateCallMetadata`** — Fixed type error where `Record<string, unknown>` was not assignable to Prisma's `NullableJsonNullValueInput`. (`src/lib/services/call-service.ts`)
+
 ### Fixed — Agent not answering from knowledge base
 
 - **Auto-inject KB instruction into system prompt** — when an agent has `useKnowledgeBase: true` and KB documents are linked, a standard knowledge base consultation instruction is automatically appended to the system prompt before it is sent to ElevenLabs (at create and sync time). The stored system prompt is unchanged — the instruction is injected only at the provider call level. Agents that already mention "knowledge base" in their prompt are not affected (deduplication check). (`src/lib/services/agent-service.ts`)

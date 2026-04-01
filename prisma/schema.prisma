@@ -31,35 +31,47 @@ model User {
   campaigns              Campaign[]
   contacts               Contact[]
   knowledgeBaseDocuments KnowledgeBaseDocument[]
+  campaignTemplates      CampaignTemplate[]
+  workflows              Workflow[]
+  contactGroups          ContactGroup[]
 }
 
 model Agent {
-  id                String        @id @default(cuid())
-  name              String
-  description       String?       @db.Text
-  systemPrompt      String        @db.Text
-  provider          VoiceProvider @default(ELEVENLABS)
-  voice             String        @default("rachel")
-  language          String        @default("en")
-  temperature       Float         @default(0.7)
-  firstMessage      String?       @db.Text
-  maxDuration       Int           @default(300)
+  id                     String        @id @default(cuid())
+  name                   String
+  description            String?       @db.Text
+  systemPrompt           String        @db.Text
+  provider               VoiceProvider @default(ELEVENLABS)
+  voice                  String        @default("rachel")
+  voiceId                String?       // Custom ElevenLabs voice ID
+  language               String        @default("en")
+  temperature            Float         @default(0.7)
+  firstMessage           String?       @db.Text
+  maxDuration            Int           @default(300)
+  // ElevenLabs ConvAI features
+  evaluationCriteria     Json?         // Success evaluation rules
+  dataCollection         Json?         // Structured data to collect
+  interruptionSensitivity Float?       // 0-1 scale
+  ambientSound           String?       // office, mountain, etc.
+  backchannel            Boolean       @default(false)
   // Provider-specific IDs (populated after agent is registered with each provider)
-  ultravoxAgentId   String?
-  livekitAgentName  String?
-  elevenLabsAgentId String?
-  vapiAssistantId   String?
+  ultravoxAgentId        String?
+  livekitAgentName       String?
+  elevenLabsAgentId      String?
+  vapiAssistantId        String?
   // Extra provider config (e.g. VAPI phone number ID)
-  providerConfig    Json?
-  useKnowledgeBase  Boolean       @default(false)
-  isActive          Boolean       @default(true)
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calls             Call[]
-  campaigns         Campaign[]
-  tools             AgentTool[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  providerConfig         Json?
+  useKnowledgeBase       Boolean       @default(false)
+  isActive               Boolean       @default(true)
+  userId                 String
+  user                   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calls                  Call[]
+  campaigns              Campaign[]
+  tools                  AgentTool[]
+  knowledgeBaseDocuments KnowledgeBaseDocument[]
+  contactAssignments     ContactAgentAssignment[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   @@index([userId])
   @@index([isActive])
@@ -78,6 +90,8 @@ model Contact {
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   calls            Call[]
   campaignContacts CampaignContact[]
+  groupMemberships ContactGroupMember[]
+  agentAssignments ContactAgentAssignment[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -200,6 +214,36 @@ enum CallStatus {
   CANCELLED
 }
 
+model CampaignTemplate {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?  @db.Text
+  agentConfig       Json     // Snapshot of agent + campaign settings
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  trigger     String   // e.g., "call.completed", "call.failed", "campaign.completed"
+  conditions  Json?    // e.g., { "status": "NO_ANSWER" }
+  actions     Json     // e.g., [{ "type": "webhook", "url": "..." }, { "type": "tag_contact", "tag": "..." }]
+  isActive    Boolean  @default(true)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([trigger])
+}
+
 model KnowledgeBaseDocument {
   id              String    @id @default(cuid())
   userId          String
@@ -213,11 +257,14 @@ model KnowledgeBaseDocument {
   folderElevenLabsId String?
   syncStatus         String    @default("PENDING")
   syncError          String?
+  agentId            String?
+  agent              Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([agentId])
 }
 
 model AgentTool {
@@ -231,5 +278,45 @@ model AgentTool {
   createdAt   DateTime @default(now())
   agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
+  @@index([agentId])
+}
+
+model ContactGroup {
+  id          String               @id @default(cuid())
+  name        String
+  description String?              @db.Text
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members     ContactGroupMember[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ContactGroupMember {
+  id        String       @id @default(cuid())
+  contactId String
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     ContactGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([contactId, groupId])
+  @@index([contactId])
+  @@index([groupId])
+}
+
+model ContactAgentAssignment {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, agentId])
+  @@index([contactId])
   @@index([agentId])
 }

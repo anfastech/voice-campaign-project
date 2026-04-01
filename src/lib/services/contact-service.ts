@@ -4,26 +4,49 @@ export async function listContacts(params: {
   search?: string
   page?: number
   limit?: number
+  groupId?: string
+  agentId?: string
+  tag?: string
+  doNotCall?: boolean
 }) {
-  const { search, page = 1, limit = 100 } = params
+  const { search, page = 1, limit = 100, groupId, agentId, tag, doNotCall } = params
 
-  const where = {
-    userId: 'default-user',
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { phoneNumber: { contains: search } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}),
+  const where: Record<string, unknown> = { userId: 'default-user' }
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { phoneNumber: { contains: search } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  if (groupId) {
+    where.groupMemberships = { some: { groupId } }
+  }
+
+  if (agentId === 'shared') {
+    where.agentAssignments = { none: {} }
+  } else if (agentId) {
+    where.agentAssignments = { some: { agentId } }
+  }
+
+  if (tag) {
+    where.tags = { has: tag }
+  }
+
+  if (doNotCall !== undefined) {
+    where.doNotCall = doNotCall
   }
 
   const [contacts, total] = await Promise.all([
     prisma.contact.findMany({
       where,
-      include: { _count: { select: { calls: true } } },
+      include: {
+        _count: { select: { calls: true } },
+        groupMemberships: { include: { group: { select: { id: true, name: true } } } },
+        agentAssignments: { include: { agent: { select: { id: true, name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
@@ -67,6 +90,8 @@ export async function getContact(id: string) {
         },
       },
       _count: { select: { calls: true } },
+      groupMemberships: { include: { group: { select: { id: true, name: true } } } },
+      agentAssignments: { include: { agent: { select: { id: true, name: true } } } },
     },
   })
 
@@ -87,10 +112,25 @@ export async function updateContact(id: string, data: Record<string, unknown>) {
 
 export async function deleteContact(id: string) {
   await prisma.$transaction([
+    prisma.contactGroupMember.deleteMany({ where: { contactId: id } }),
+    prisma.contactAgentAssignment.deleteMany({ where: { contactId: id } }),
     prisma.campaignContact.deleteMany({ where: { contactId: id } }),
     prisma.call.deleteMany({ where: { contactId: id } }),
     prisma.contact.delete({ where: { id } }),
   ])
+}
+
+export async function assignContactsToAgent(contactIds: string[], agentId: string) {
+  await prisma.contactAgentAssignment.createMany({
+    data: contactIds.map((contactId) => ({ contactId, agentId })),
+    skipDuplicates: true,
+  })
+}
+
+export async function unassignContactsFromAgent(contactIds: string[], agentId: string) {
+  await prisma.contactAgentAssignment.deleteMany({
+    where: { contactId: { in: contactIds }, agentId },
+  })
 }
 
 export async function importContacts(csvData: Array<Record<string, string>>) {

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — ChatDash-Style Three-Panel Conversation View
+
+### Added
+- **ConversationList** (`src/components/conversations/ConversationList.tsx`) — Left panel (320px) with scrollable conversation list, status/period filter dropdowns, refresh button, and skeleton loading states.
+- **ChatTranscript** (`src/components/conversations/ChatTranscript.tsx`) — Center panel with chat bubble UI: agent messages left-aligned in muted bubbles, user messages right-aligned in primary bubbles. Includes transcript parser for `"role: message"` format.
+- **AudioPlayer** (`src/components/conversations/AudioPlayer.tsx`) — Waveform-style audio player bar with play/pause, seek-by-click, time display, and 80-bar generated waveform visualization with progress coloring.
+- **ConversationSidebar** (`src/components/conversations/ConversationSidebar.tsx`) — Right panel (300px) with tab icons, search field, actions (delete), tag add/remove with PATCH mutation, reason-call-ended badge, and note textarea.
+- **ConversationPanel** (`src/components/conversations/ConversationPanel.tsx`) — Three-panel container that ties the list, transcript, audio player, and sidebar together with React Query data fetching and 30s auto-refresh.
+- **Client conversations page** (`src/app/client/conversations/page.tsx`) — Renders the ConversationPanel with `/api/client/conversations` base path.
+- **Client agents page** (`src/app/client/agents/page.tsx`) — Read-only agent card grid showing name, description, and active/inactive badge.
+- **Client campaigns page** (`src/app/client/campaigns/page.tsx`) — Placeholder page with "coming soon" messaging.
+- **Client contacts page** (`src/app/client/contacts/page.tsx`) — Placeholder page with "coming soon" messaging.
+
 ## [2026-04-03] — Client Dashboard: Layout, Sidebar & API
 
 ### Added

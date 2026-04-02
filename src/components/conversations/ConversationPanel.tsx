@@ -36,7 +36,7 @@ export function ConversationPanel({ apiBasePath }: ConversationPanelProps) {
       id: c.id,
       contactName: c.contact?.name || null,
       phoneNumber: c.phoneNumber,
-      conversationId: c.providerCallId || c.elevenLabsCallId || c.id,
+      conversationId: c.providerCallId || c.id,
       date: c.startedAt || c.createdAt,
       status: c.status,
       duration: c.duration,

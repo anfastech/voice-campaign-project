@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — Agency Platform: Multi-Tenant Transformation
+
+### Added
+- **Multi-tenant auth** — NextAuth v5 with dual credential providers (admin-login, client-login). JWT sessions with role-based access control.
+- **Login page** (`/login`) — Role selector (Admin/Client), email+password form. No landing page — root redirects to login.
+- **Middleware** — Route protection, role-based redirects. Clients can only access `/client/*` routes.
+- **Client model** — New Prisma models: Client, ClientAgent (assignment junction), BrandingSettings.
+- **Client management UI** — Admin pages to create clients, assign agents, reset passwords, toggle active status.
+- **Client dashboard** — Filtered analytics, conversations, agents (read-only) for assigned agents only.
+- **ChatDash-style conversation view** — Three-panel layout: conversation list (left), chat bubble transcript with waveform audio player (center), metadata/tags/notes sidebar (right).
+- **Admin sidebar** — Added Clients and Branding nav items under "Admin" section.
+- **Branding settings** — Platform name, logo, favicon, primary/accent color customization.
+- **White-labeled client view** — No provider names (ElevenLabs, Twilio) visible to clients.
+
+### Changed
+- **All services** refactored to accept `userId` parameter instead of hardcoded `default-user`.
+- **All API routes** extract `userId` from NextAuth session. Zero `default-user` references remain.
+- **Header** — Added logout button.
+
+---
+
 ## [2026-04-03] — ChatDash-Style Three-Panel Conversation View
 
 ### Added

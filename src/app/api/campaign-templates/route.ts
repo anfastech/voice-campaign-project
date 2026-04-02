@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-const USER_ID = 'default-user'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function GET() {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const templates = await prisma.campaignTemplate.findMany({
-      where: { userId: USER_ID },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(templates)
@@ -18,6 +21,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const { name, description, agentConfig } = body
 
@@ -30,7 +37,7 @@ export async function POST(req: NextRequest) {
         name,
         description: description || null,
         agentConfig,
-        userId: USER_ID,
+        userId,
       },
     })
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listContactGroups, createContactGroup } from '@/lib/services/contact-group-service'
+import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -9,7 +10,11 @@ const createSchema = z.object({
 
 export async function GET() {
   try {
-    const groups = await listContactGroups()
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
+    const groups = await listContactGroups(userId)
     return NextResponse.json(groups)
   } catch (error) {
     console.error('Contact groups GET error:', error)
@@ -19,9 +24,13 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const data = createSchema.parse(body)
-    const group = await createContactGroup(data)
+    const group = await createContactGroup(userId, data)
     return NextResponse.json(group, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

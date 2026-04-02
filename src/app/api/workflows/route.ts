@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-const USER_ID = 'default-user'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function GET() {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const workflows = await prisma.workflow.findMany({
-      where: { userId: USER_ID },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(workflows)
@@ -18,6 +21,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const { name, description, trigger, conditions, actions } = body
 
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
         trigger,
         conditions: conditions || null,
         actions,
-        userId: USER_ID,
+        userId,
       },
     })
 
@@ -45,6 +52,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+
     const body = await req.json()
     const { id, ...data } = body
 
@@ -66,6 +76,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) {

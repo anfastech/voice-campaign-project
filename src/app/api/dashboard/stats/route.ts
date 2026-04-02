@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStats } from '@/lib/services/analytics-service'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+
     const period = request.nextUrl.searchParams.get('period') || '7d'
     const stats = await getStats(period)
     return NextResponse.json(stats, {

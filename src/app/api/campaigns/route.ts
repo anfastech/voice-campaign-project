@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listCampaigns, createCampaign } from '@/lib/services/campaign-service'
+import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
 const campaignSchema = z.object({
@@ -15,8 +16,12 @@ const campaignSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const { searchParams } = new URL(req.url)
-    const result = await listCampaigns({
+    const result = await listCampaigns(userId, {
       status: searchParams.get('status') || undefined,
       agentId: searchParams.get('agentId') || undefined,
       page: parseInt(searchParams.get('page') || '1'),
@@ -31,9 +36,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const data = campaignSchema.parse(body)
-    const campaign = await createCampaign(data)
+    const campaign = await createCampaign(userId, data)
     return NextResponse.json(campaign, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

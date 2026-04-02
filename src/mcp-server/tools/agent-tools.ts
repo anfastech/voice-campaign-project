@@ -9,12 +9,14 @@ import {
   syncAgent,
   generateAgent,
 } from '../../lib/services/agent-service'
+import { getAdminUserIdForMcp } from '../utils'
 
 export function registerAgentTools(server: McpServer) {
   server.registerTool('list_agents', {
     description: 'List all active voice AI agents',
   }, async () => {
-    const agents = await listAgents()
+    const userId = await getAdminUserIdForMcp()
+    const agents = await listAgents(userId)
     return { content: [{ type: 'text' as const, text: JSON.stringify(agents, null, 2) }] }
   })
 
@@ -31,7 +33,8 @@ export function registerAgentTools(server: McpServer) {
       maxDuration: z.number().int().min(30).max(3600).optional(),
     },
   }, async (args) => {
-    const agent = await createAgent(args)
+    const userId = await getAdminUserIdForMcp()
+    const agent = await createAgent(userId, args)
     return { content: [{ type: 'text' as const, text: JSON.stringify(agent, null, 2) }] }
   })
 

@@ -7,6 +7,7 @@ import {
   startCampaign,
   pauseCampaign,
 } from '../../lib/services/campaign-service'
+import { getAdminUserIdForMcp } from '../utils'
 
 export function registerCampaignTools(server: McpServer) {
   server.registerTool('list_campaigns', {
@@ -17,7 +18,8 @@ export function registerCampaignTools(server: McpServer) {
       limit: z.number().int().positive().max(100).optional(),
     },
   }, async (args) => {
-    const result = await listCampaigns({
+    const userId = await getAdminUserIdForMcp()
+    const result = await listCampaigns(userId, {
       status: args.status,
       page: args.page,
       limit: args.limit,
@@ -38,7 +40,8 @@ export function registerCampaignTools(server: McpServer) {
       callsPerMinute: z.number().int().min(1).max(60).optional(),
     },
   }, async (args) => {
-    const campaign = await createCampaign(args)
+    const userId = await getAdminUserIdForMcp()
+    const campaign = await createCampaign(userId, args)
     return { content: [{ type: 'text' as const, text: JSON.stringify(campaign, null, 2) }] }
   })
 

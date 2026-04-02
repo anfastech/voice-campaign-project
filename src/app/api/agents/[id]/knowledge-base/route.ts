@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listDocuments } from '@/lib/services/knowledge-base-service'
-
-const USER_ID = 'default-user'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const { id } = await params
-    const docs = await listDocuments(USER_ID, id)
+    const docs = await listDocuments(userId, id)
     return NextResponse.json(docs)
   } catch (error) {
     console.error('Agent KB list error:', error)

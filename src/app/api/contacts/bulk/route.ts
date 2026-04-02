@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { assignContactsToAgent, unassignContactsFromAgent, deleteContact } from '@/lib/services/contact-service'
 import { addContactsToGroup, removeContactsFromGroup } from '@/lib/services/contact-group-service'
+import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
 const bulkSchema = z.discriminatedUnion('action', [
@@ -16,6 +17,9 @@ const bulkSchema = z.discriminatedUnion('action', [
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+
     const body = await req.json()
     const payload = bulkSchema.parse(body)
 

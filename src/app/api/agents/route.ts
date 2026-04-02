@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listAgents, createAgent } from '@/lib/services/agent-service'
+import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
 const agentSchema = z.object({
@@ -18,7 +19,11 @@ const agentSchema = z.object({
 
 export async function GET() {
   try {
-    const agents = await listAgents()
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
+    const agents = await listAgents(userId)
     return NextResponse.json(agents)
   } catch (error) {
     console.error('Agents GET error:', error)
@@ -28,9 +33,13 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const data = agentSchema.parse(body)
-    const agent = await createAgent(data)
+    const agent = await createAgent(userId, data)
     const status = 'syncStatus' in agent && agent.syncStatus === 'failed' ? 207 : 201
     return NextResponse.json(agent, { status })
   } catch (error) {

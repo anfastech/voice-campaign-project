@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — API Routes: Session-Based userId
+
+### Changed
+- **All API routes** now extract `userId` from the authenticated session via `requireAuth()` instead of using a hardcoded `'default-user'` string.
+- **Routes updated**: agents, campaigns, contacts, contacts/import, contacts/bulk, contact-groups, knowledge-base, knowledge-base/[id], agents/[id]/knowledge-base, campaign-templates, workflows, dashboard/stats, dashboard/chart, and all analytics routes (overview, call-analytics, call-outcomes, call-volume, agent-comparison, campaign-performance, cost-breakdown, success-rate).
+- **MCP server tools** (agent-tools, campaign-tools) now resolve the admin userId from the database via `getAdminUserIdForMcp()`.
+- Admin users use their own `user.id`; client users use `user.adminUserId` to scope data to their admin's tenant.
+
+### Added
+- **src/mcp-server/utils.ts** — `getAdminUserIdForMcp()` helper that looks up the first admin user from the database for MCP server (stdio) context.
+
 ## [2026-04-03] — White-Label Branding Settings
 
 ### Added

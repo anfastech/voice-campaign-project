@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listContacts, createContact } from '@/lib/services/contact-service'
+import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
 const contactSchema = z.object({
@@ -12,9 +13,13 @@ const contactSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const { searchParams } = new URL(req.url)
     const doNotCallParam = searchParams.get('doNotCall')
-    const result = await listContacts({
+    const result = await listContacts(userId, {
       search: searchParams.get('search') || undefined,
       page: parseInt(searchParams.get('page') || '1'),
       limit: parseInt(searchParams.get('limit') || '100'),
@@ -32,9 +37,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const body = await req.json()
     const data = contactSchema.parse(body)
-    const contact = await createContact(data)
+    const contact = await createContact(userId, data)
     return NextResponse.json(contact, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

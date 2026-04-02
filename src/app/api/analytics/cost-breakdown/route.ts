@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCostBreakdown } from '@/lib/services/analytics-service'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+
     const { searchParams } = new URL(req.url)
     const groupBy = searchParams.get('groupBy') as 'provider' | 'campaign' | 'day' | null
     if (!groupBy || !['provider', 'campaign', 'day'].includes(groupBy)) {

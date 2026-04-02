@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { deleteDocument, retrySyncDocument } from '@/lib/services/knowledge-base-service'
-
-const USER_ID = 'default-user'
+import { requireAuth } from '@/lib/auth-utils'
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const { id } = await params
-    await deleteDocument(USER_ID, id)
+    await deleteDocument(userId, id)
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete document'
@@ -17,8 +20,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
     const { id } = await params
-    const doc = await retrySyncDocument(USER_ID, id)
+    const doc = await retrySyncDocument(userId, id)
     return NextResponse.json({ document: doc })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to sync document'

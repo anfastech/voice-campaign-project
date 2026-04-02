@@ -8,31 +8,34 @@ import {
   Smile, Meh, Frown, SlidersHorizontal,
 } from 'lucide-react'
 import { formatDate, formatDuration, formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const STATUS_OPTIONS = ['ALL', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'IN_PROGRESS', 'INITIATED', 'BUSY', 'CANCELLED']
 
-const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-  COMPLETED: { label: 'Completed', bg: 'oklch(0.55 0.215 163 / 12%)', text: 'oklch(0.45 0.215 163)', dot: 'oklch(0.55 0.215 163)' },
-  FAILED: { label: 'Failed', bg: 'oklch(0.59 0.245 15 / 12%)', text: 'oklch(0.52 0.245 15)', dot: 'oklch(0.59 0.245 15)' },
-  IN_PROGRESS: { label: 'In Progress', bg: 'oklch(0.49 0.263 281 / 12%)', text: 'oklch(0.49 0.263 281)', dot: 'oklch(0.49 0.263 281)' },
-  NO_ANSWER: { label: 'No Answer', bg: 'oklch(0.72 0.18 68 / 12%)', text: 'oklch(0.55 0.18 68)', dot: 'oklch(0.72 0.18 68)' },
-  INITIATED: { label: 'Initiated', bg: 'oklch(0.6 0.015 285 / 8%)', text: 'oklch(0.52 0.015 285)', dot: 'oklch(0.6 0.015 285)' },
-  BUSY: { label: 'Busy', bg: 'oklch(0.6 0.19 220 / 12%)', text: 'oklch(0.5 0.19 220)', dot: 'oklch(0.6 0.19 220)' },
-  CANCELLED: { label: 'Cancelled', bg: 'oklch(0.5 0.015 285 / 8%)', text: 'oklch(0.45 0.015 285)', dot: 'oklch(0.5 0.015 285)' },
+const statusConfig: Record<string, { label: string; className: string; dotClassName: string }> = {
+  COMPLETED: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-600', dotClassName: 'bg-emerald-500' },
+  FAILED: { label: 'Failed', className: 'bg-red-500/10 text-red-600', dotClassName: 'bg-red-500' },
+  IN_PROGRESS: { label: 'In Progress', className: 'bg-blue-500/10 text-blue-600', dotClassName: 'bg-blue-500' },
+  NO_ANSWER: { label: 'No Answer', className: 'bg-amber-500/10 text-amber-600', dotClassName: 'bg-amber-500' },
+  INITIATED: { label: 'Initiated', className: 'bg-gray-500/10 text-gray-600', dotClassName: 'bg-gray-500' },
+  BUSY: { label: 'Busy', className: 'bg-sky-500/10 text-sky-600', dotClassName: 'bg-sky-500' },
+  CANCELLED: { label: 'Cancelled', className: 'bg-gray-500/10 text-gray-600', dotClassName: 'bg-gray-500' },
 }
 
-const sentimentIcons = {
-  positive: { icon: Smile, color: 'oklch(0.55 0.215 163)', bg: 'oklch(0.55 0.215 163 / 12%)' },
-  neutral: { icon: Meh, color: 'oklch(0.6 0.19 220)', bg: 'oklch(0.6 0.19 220 / 12%)' },
-  negative: { icon: Frown, color: 'oklch(0.59 0.245 15)', bg: 'oklch(0.59 0.245 15 / 12%)' },
+const sentimentConfig = {
+  positive: { icon: Smile, className: 'bg-emerald-500/10 text-emerald-600' },
+  neutral: { icon: Meh, className: 'bg-sky-500/10 text-sky-600' },
+  negative: { icon: Frown, className: 'bg-red-500/10 text-red-600' },
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status] || { label: status, bg: 'oklch(0.5 0.015 285 / 8%)', text: 'oklch(0.45 0.015 285)', dot: 'oklch(0.5 0.015 285)' }
+  const cfg = statusConfig[status] || { label: status, className: 'bg-gray-500/10 text-gray-600', dotClassName: 'bg-gray-500' }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-      style={{ background: cfg.bg, color: cfg.text }}>
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${cfg.className}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotClassName}`} />
       {cfg.label}
     </span>
   )
@@ -40,13 +43,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function SentimentBadge({ sentiment }: { sentiment?: string }) {
   if (!sentiment) return null
-  const cfg = sentimentIcons[sentiment as keyof typeof sentimentIcons]
+  const cfg = sentimentConfig[sentiment as keyof typeof sentimentConfig]
   if (!cfg) return null
   const Icon = cfg.icon
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-      style={{ background: cfg.bg }}>
-      <Icon className="w-3 h-3" style={{ color: cfg.color }} />
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${cfg.className}`}>
+      <Icon className="w-3 h-3" />
     </span>
   )
 }
@@ -117,96 +119,99 @@ export default function ConversationsPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Search */}
-          <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md px-3 py-2 rounded-xl"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-            <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search transcripts, contacts, numbers..."
-              className="flex-1 bg-transparent outline-none text-sm"
-              style={{ color: 'var(--foreground)' }} />
+          <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search transcripts, contacts, numbers..."
+                className="pl-9 rounded-xl"
+              />
+            </div>
             {search && (
-              <button onClick={handleSearch}
-                className="text-xs font-medium px-2 py-0.5 rounded-lg"
-                style={{ background: 'oklch(0.49 0.263 281 / 10%)', color: 'oklch(0.49 0.263 281)' }}>
+              <Button variant="secondary" size="sm" onClick={handleSearch} className="rounded-lg text-xs">
                 Search
-              </button>
+              </Button>
             )}
           </div>
 
-          <button onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105"
-            style={{
-              background: showFilters ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--card)',
-              border: `1px solid ${showFilters ? 'oklch(0.49 0.263 281 / 30%)' : 'var(--border)'}`,
-              color: showFilters ? 'oklch(0.49 0.263 281)' : 'var(--foreground)',
-            }}>
+          <Button
+            variant={showFilters ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`rounded-xl gap-1.5 ${showFilters ? 'bg-primary/10 text-primary border-primary/30' : ''}`}
+          >
             <SlidersHorizontal className="w-4 h-4" />
             Filters
-          </button>
+          </Button>
 
-          <span className="text-sm ml-1" style={{ color: 'var(--muted-foreground)' }}>
+          <span className="text-sm ml-1 text-muted-foreground">
             {total.toLocaleString()} conversation{total !== 1 ? 's' : ''}
           </span>
 
-          <button onClick={exportCsv} disabled={calls.length === 0}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportCsv}
+            disabled={calls.length === 0}
+            className="rounded-xl gap-2 ml-auto"
+          >
             <Download className="w-4 h-4" />
             Export CSV
-          </button>
+          </Button>
         </div>
 
         {/* Extended Filters */}
         {showFilters && (
-          <div className="flex items-center gap-3 flex-wrap p-3 rounded-xl"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+          <Card className="flex items-center gap-3 flex-wrap p-3 rounded-xl bg-muted">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>From</label>
-              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
-                className="text-xs px-2 py-1.5 rounded-lg bg-transparent outline-none"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }} />
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">From</label>
+              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+                className="text-xs px-2 py-1.5 rounded-lg h-auto" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>To</label>
-              <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
-                className="text-xs px-2 py-1.5 rounded-lg bg-transparent outline-none"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }} />
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">To</label>
+              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+                className="text-xs px-2 py-1.5 rounded-lg h-auto" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>Agent</label>
-              <select value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1) }}
-                className="text-xs px-2 py-1.5 rounded-lg bg-transparent outline-none"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-                <option value="">All Agents</option>
-                {(Array.isArray(agents) ? agents : []).map((a: any) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</label>
+              <Select value={agentFilter || '_all'} onValueChange={(v) => { setAgentFilter(v === '_all' ? '' : v); setPage(1) }}>
+                <SelectTrigger className="text-xs h-auto py-1.5 rounded-lg min-w-[120px]">
+                  <SelectValue placeholder="All Agents" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">All Agents</SelectItem>
+                  {(Array.isArray(agents) ? agents : []).map((a: any) => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {(dateFrom || dateTo || agentFilter) && (
-              <button onClick={() => { setDateFrom(''); setDateTo(''); setAgentFilter(''); setPage(1) }}
-                className="text-xs font-medium px-2 py-1 rounded-lg self-end"
-                style={{ color: 'oklch(0.59 0.245 15)' }}>
+              <Button variant="ghost" size="sm"
+                onClick={() => { setDateFrom(''); setDateTo(''); setAgentFilter(''); setPage(1) }}
+                className="text-xs text-red-600 self-end">
                 Clear
-              </button>
+              </Button>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Status filter tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl overflow-x-auto"
-          style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-1 p-1 rounded-xl overflow-x-auto bg-muted border border-border">
           {STATUS_OPTIONS.map((s) => {
             const isActive = statusFilter === s
             return (
               <button key={s}
                 onClick={() => { setStatusFilter(s); setPage(1) }}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200"
-                style={isActive ? {
-                  background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                  color: 'white', boxShadow: '0 2px 8px oklch(0.49 0.263 281 / 30%)',
-                } : { color: 'var(--muted-foreground)' }}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}>
                 {s === 'ALL' ? 'All' : s.replace('_', ' ')}
               </button>
             )
@@ -218,80 +223,68 @@ export default function ConversationsPage() {
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-14 rounded-xl relative overflow-hidden"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div className="absolute inset-0 shimmer" />
-            </div>
+            <div key={i} className="h-14 rounded-xl animate-pulse bg-muted border border-border" />
           ))}
         </div>
       ) : calls.length === 0 ? (
-        <div className="rounded-2xl p-12 flex flex-col items-center justify-center text-center"
-          style={{ background: 'var(--card)', border: '1px dashed var(--border)' }}>
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-            style={{
-              background: 'linear-gradient(135deg, oklch(0.49 0.263 281 / 15%), oklch(0.65 0.22 310 / 15%))',
-              border: '1px solid oklch(0.49 0.263 281 / 20%)',
-            }}>
-            <Phone className="w-7 h-7" style={{ color: 'oklch(0.49 0.263 281)' }} />
+        <Card className="rounded-2xl p-12 flex flex-col items-center justify-center text-center border-dashed">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-primary/10 border border-primary/20">
+            <Phone className="w-7 h-7 text-primary" />
           </div>
-          <h3 className="font-semibold mb-1" style={{ color: 'var(--foreground)' }}>No calls found</h3>
-          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          <h3 className="font-semibold mb-1 text-foreground">No calls found</h3>
+          <p className="text-sm text-muted-foreground">
             {statusFilter !== 'ALL' || searchQuery ? 'Try adjusting your filters.' : 'Start a campaign to generate conversations.'}
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="rounded-2xl overflow-hidden"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <Card className="rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                <tr className="bg-muted border-b border-border">
                   {['Contact', 'Status', 'Duration', 'Cost', 'Agent', 'Campaign', 'Started'].map((h, i) => (
                     <th key={i}
-                      className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest ${i >= 2 && i <= 3 ? 'hidden sm:table-cell' : ''} ${i >= 4 && i <= 5 ? 'hidden lg:table-cell' : ''} ${i === 6 ? 'hidden xl:table-cell' : ''}`}
-                      style={{ color: 'var(--muted-foreground)' }}>{h}</th>
+                      className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground ${i >= 2 && i <= 3 ? 'hidden sm:table-cell' : ''} ${i >= 4 && i <= 5 ? 'hidden lg:table-cell' : ''} ${i === 6 ? 'hidden xl:table-cell' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {calls.map((call: any, idx: number) => (
-                  <tr key={call.id} className="group transition-colors duration-150 cursor-pointer"
-                    style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none' }}
-                    onClick={() => setSelectedCall(call)}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'var(--muted)' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}>
+                  <tr key={call.id}
+                    className={`group transition-colors duration-150 cursor-pointer hover:bg-muted ${idx > 0 ? 'border-t border-border' : ''}`}
+                    onClick={() => setSelectedCall(call)}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div>
-                          <p className="font-medium text-sm truncate max-w-[160px]" style={{ color: 'var(--foreground)' }}>
+                          <p className="font-medium text-sm truncate max-w-[160px] text-foreground">
                             {call.contact?.name || call.phoneNumber}
                           </p>
-                          <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>{call.phoneNumber}</p>
+                          <p className="text-xs truncate text-muted-foreground">{call.phoneNumber}</p>
                         </div>
                         <SentimentBadge sentiment={call.metadata?.sentiment} />
                       </div>
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={call.status} /></td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3 flex-shrink-0" />
-                        {call.duration ? formatDuration(call.duration) : '—'}
+                        {call.duration ? formatDuration(call.duration) : '\u2014'}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <DollarSign className="w-3 h-3 flex-shrink-0" />
-                        {call.cost ? formatCurrency(call.cost) : '—'}
+                        {call.cost ? formatCurrency(call.cost) : '\u2014'}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
-                      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.agent?.name || '—'}</span>
+                      <span className="text-xs text-muted-foreground">{call.agent?.name || '\u2014'}</span>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
-                      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{call.campaign?.name || '—'}</span>
+                      <span className="text-xs text-muted-foreground">{call.campaign?.name || '\u2014'}</span>
                     </td>
                     <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="text-xs tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
+                      <span className="text-xs tabular-nums text-muted-foreground">
                         {formatDate(call.startedAt)}
                       </span>
                     </td>
@@ -302,24 +295,23 @@ export default function ConversationsPage() {
           </div>
 
           {pages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3"
-              style={{ borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)', background: 'var(--muted)' }}>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                className="rounded-xl">
                 &larr; Previous
-              </button>
-              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              </Button>
+              <span className="text-xs text-muted-foreground">
                 Page {page} of {pages}
               </span>
-              <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages}
-                className="px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)', background: 'var(--muted)' }}>
+              <Button variant="outline" size="sm"
+                onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages}
+                className="rounded-xl">
                 Next &rarr;
-              </button>
+              </Button>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       <CallDetailDrawer call={selectedCall} onClose={() => setSelectedCall(null)} />

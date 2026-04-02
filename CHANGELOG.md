@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-02] — shadcn/ui Clean Dashboard Overhaul
+
+### Changed
+- **globals.css** — Stripped all glassmorphism, mesh-bg, gradient-text, glow, shimmer, and live-dot utilities. Replaced oklch color palette with clean hex neutral palette.
+- **Sidebar** — Rebuilt as clean white sidebar with shadcn primitives (Separator, cn). Removed decorative gradient blobs and inline styles.
+- **Header** — Simplified to minimal title + date/refresh/theme-toggle. Removed breadcrumbs, notification bell, user menu, and subtitle pill.
+- **Analytics page** — Replaced 6 KPI cards with 4 clean StatCard components. Replaced gradient date selector with shadcn Buttons. Replaced inline-styled tables with Tailwind classes.
+- **VolumeChart** — Converted from stacked bar chart to line chart with shadcn Card wrapper.
+- **OutcomeChart** — Wrapped in shadcn Card, replaced oklch colors with CSS variables.
+- **CallChart** — Converted to smooth line chart with Latest/Previous comparison.
+- **Agents pages** — Replaced gradient buttons with shadcn Button, cards with shadcn Card, form inputs with shadcn Input/Textarea/Select/Switch/Slider/Label.
+- **Contacts page** — Replaced inline styles with Tailwind, buttons with shadcn Button, badges with shadcn Badge, inputs with shadcn Input.
+- **Campaigns page** — Replaced gradient filter tabs and action buttons with shadcn Button, cards with shadcn Card.
+- **Conversations page** — Replaced status badges with Tailwind classes, search/filter with shadcn Input/Select, table rows with hover:bg-muted.
+- **Settings page** — Replaced custom toggles with shadcn Switch, wrapped sections in shadcn Card with Separator.
+- **Knowledge Base page** — Replaced form inputs with shadcn Input/Textarea/Select, status badges with shadcn Badge, buttons with shadcn Button.
+
+### Added
+- **stat-card.tsx** — New reusable StatCard component with trend badges, built on shadcn Card.
+
 ## [2026-04-02] — Fix Self-Cancelling Calls (3-Second Drop)
 
 ### Fixed

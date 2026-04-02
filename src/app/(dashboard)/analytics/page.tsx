@@ -3,11 +3,10 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-import {
-  Phone, TrendingUp, DollarSign, Clock, Users, Target,
-  Download, BarChart3, Grid3X3, PieChart as PieChartIcon,
-} from 'lucide-react'
-import { StatsCard } from '@/components/dashboard/StatsCard'
+import { Download } from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { ConversationChart } from '@/components/dashboard/ConversationChart'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { formatCurrency, formatDuration } from '@/lib/utils'
@@ -35,9 +34,8 @@ const CostChart = dynamic(
 
 function ChartSkeleton() {
   return (
-    <div className="h-[280px] rounded-xl relative overflow-hidden"
-      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-      <div className="absolute inset-0 shimmer" />
+    <div className="h-[280px] rounded-xl bg-muted border border-border relative overflow-hidden">
+      <div className="absolute inset-0 animate-pulse bg-muted" />
     </div>
   )
 }
@@ -78,30 +76,6 @@ function getDateRange(preset: string): { from?: string; to?: string } {
     default:
       return {}
   }
-}
-
-function ChartCard({ title, subtitle, icon: Icon, children }: {
-  title: string
-  subtitle?: string
-  icon: any
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-2xl p-6"
-      style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 1px 3px oklch(0 0 0 / 4%)' }}>
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>{title}</h3>
-          {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>}
-        </div>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'oklch(0.49 0.263 281 / 10%)' }}>
-          <Icon className="w-4 h-4" style={{ color: 'oklch(0.49 0.263 281)' }} />
-        </div>
-      </div>
-      {children}
-    </div>
-  )
 }
 
 export default function AnalyticsPage() {
@@ -216,24 +190,22 @@ export default function AnalyticsPage() {
       {/* Header with date picker */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Analytics</h2>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+          <h2 className="text-xl font-bold text-foreground">Analytics</h2>
+          <p className="text-sm mt-0.5 text-muted-foreground">
             Deep insights into your voice campaign performance
           </p>
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-xl"
-          style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted border border-border">
           {DATE_PRESETS.map((p) => (
-            <button key={p.value}
+            <Button
+              key={p.value}
+              variant={datePreset === p.value ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs"
               onClick={() => setDatePreset(p.value)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200"
-              style={datePreset === p.value ? {
-                background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                color: 'white',
-                boxShadow: '0 2px 8px oklch(0.49 0.263 281 / 30%)',
-              } : { color: 'var(--muted-foreground)' }}>
+            >
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -242,44 +214,31 @@ export default function AnalyticsPage() {
       {dashStatsLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-2xl p-5 h-28 relative overflow-hidden"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div className="absolute inset-0 shimmer" />
+            <div key={i} className="rounded-2xl p-5 h-28 bg-card border border-border relative overflow-hidden">
+              <div className="absolute inset-0 animate-pulse bg-muted" />
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard
-            title="Total Calls"
+          <StatCard
+            label="Total Calls"
             value={dashStats?.period?.current?.calls ?? 0}
-            subtitle="This period"
-            icon={Phone}
-            color="violet"
             trend={dashStats?.period?.trends?.calls}
           />
-          <StatsCard
-            title="Successful Calls"
+          <StatCard
+            label="Successful Calls"
             value={dashStats?.period?.current?.successful ?? 0}
-            subtitle={`${dashStats?.period?.current?.successRate ?? 0}% success rate`}
-            icon={TrendingUp}
-            color="emerald"
             trend={dashStats?.period?.trends?.successful}
           />
-          <StatsCard
-            title="Avg Duration"
+          <StatCard
+            label="Avg Duration"
             value={formatDuration(dashStats?.period?.current?.avgDuration)}
-            subtitle="Per completed call"
-            icon={Clock}
-            color="sky"
             trend={dashStats?.period?.trends?.avgDuration}
           />
-          <StatsCard
-            title="Total Cost"
+          <StatCard
+            label="Total Cost"
             value={formatCurrency(dashStats?.period?.current?.cost)}
-            subtitle="This period"
-            icon={DollarSign}
-            color="amber"
             trend={dashStats?.period?.trends?.cost}
           />
         </div>
@@ -289,26 +248,19 @@ export default function AnalyticsPage() {
       {overviewLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl p-5 h-28 relative overflow-hidden"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div className="absolute inset-0 shimmer" />
+            <div key={i} className="rounded-2xl p-5 h-28 bg-card border border-border relative overflow-hidden">
+              <div className="absolute inset-0 animate-pulse bg-muted" />
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <StatsCard title="Total Calls" value={overview?.totalCalls ?? 0}
-            subtitle={`${overview?.completedCalls ?? 0} completed`} icon={Phone} color="violet" />
-          <StatsCard title="Avg Duration" value={formatDuration(overview?.avgDuration)}
-            subtitle="Per completed call" icon={Clock} color="sky" />
-          <StatsCard title="Success Rate" value={`${overview?.successRate ?? 0}%`}
-            subtitle={`${overview?.completedCalls ?? 0} successful`} icon={TrendingUp} color="emerald" />
-          <StatsCard title="Total Cost" value={formatCurrency(overview?.totalCost)}
-            subtitle={`${formatCurrency(overview?.costPerSuccess)}/success`} icon={DollarSign} color="amber" />
-          <StatsCard title="Cost / Success" value={formatCurrency(overview?.costPerSuccess)}
-            subtitle="Per successful call" icon={Target} color="rose" />
-          <StatsCard title="Contacts Reached" value={overview?.contactsReached ?? 0}
-            subtitle="Unique contacts" icon={Users} color="violet" />
+          <StatCard label="Total Calls" value={overview?.totalCalls ?? 0} />
+          <StatCard label="Avg Duration" value={formatDuration(overview?.avgDuration)} />
+          <StatCard label="Success Rate" value={`${overview?.successRate ?? 0}%`} />
+          <StatCard label="Total Cost" value={formatCurrency(overview?.totalCost)} />
+          <StatCard label="Cost / Success" value={formatCurrency(overview?.costPerSuccess)} />
+          <StatCard label="Contacts Reached" value={overview?.contactsReached ?? 0} />
         </div>
       )}
 
@@ -325,83 +277,105 @@ export default function AnalyticsPage() {
 
       {/* Charts Row 1: Outcomes + Volume */}
       <div className="grid lg:grid-cols-2 gap-5">
-        <ChartCard title="Call Outcomes" subtitle="Status breakdown" icon={PieChartIcon}>
-          <OutcomeChart data={Array.isArray(outcomes) ? outcomes : []} />
-        </ChartCard>
-        <ChartCard title="Call Volume" subtitle="Daily breakdown by status" icon={BarChart3}>
-          <VolumeBarChart data={volumeData?.data ?? []} />
-        </ChartCard>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Call Outcomes</CardTitle>
+            <CardDescription>Status breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OutcomeChart data={Array.isArray(outcomes) ? outcomes : []} />
+          </CardContent>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Call Volume</CardTitle>
+            <CardDescription>Daily breakdown by status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VolumeBarChart data={volumeData?.data ?? []} />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts Row 2: Success Trend + Heatmap */}
       <div className="grid lg:grid-cols-2 gap-5">
-        <ChartCard title="Success Rate Trend" subtitle="Daily success rate over period" icon={TrendingUp}>
-          <SuccessRateTrend data={successTrend} />
-        </ChartCard>
-        <ChartCard title="Call Volume Heatmap" subtitle="Best calling times (hour × day)" icon={Grid3X3}>
-          <HeatmapChart data={heatmapData?.data ?? []} />
-        </ChartCard>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Success Rate Trend</CardTitle>
+            <CardDescription>Daily success rate over period</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SuccessRateTrend data={successTrend} />
+          </CardContent>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Call Volume Heatmap</CardTitle>
+            <CardDescription>Best calling times (hour x day)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <HeatmapChart data={heatmapData?.data ?? []} />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Cost Breakdown */}
-      <ChartCard title="Cost Breakdown" subtitle="Daily cost trend" icon={DollarSign}>
-        <CostChart data={Array.isArray(costData) ? costData : []} />
-      </ChartCard>
+      <Card className="shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Cost Breakdown</CardTitle>
+          <CardDescription>Daily cost trend</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CostChart data={Array.isArray(costData) ? costData : []} />
+        </CardContent>
+      </Card>
 
       {/* Agent Comparison Table */}
-      <div className="rounded-2xl overflow-hidden"
-        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+      <Card className="shadow-none overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Agent Comparison</h3>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Performance metrics per agent</p>
+            <h3 className="font-semibold text-sm text-foreground">Agent Comparison</h3>
+            <p className="text-xs mt-0.5 text-muted-foreground">Performance metrics per agent</p>
           </div>
-          <button onClick={exportAgents} disabled={!agentData?.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all hover:scale-105 disabled:opacity-40"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
+          <Button variant="outline" size="sm" onClick={exportAgents} disabled={!agentData?.length}>
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
+          </Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: 'var(--muted)' }}>
+              <tr className="bg-muted">
                 {['Agent', 'Calls', 'Successful', 'Success Rate', 'Avg Duration', 'Total Cost'].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest"
-                    style={{ color: 'var(--muted-foreground)' }}>{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {(agentData ?? []).length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>No agent data</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No agent data</td></tr>
               ) : (
                 (agentData ?? []).map((agent: any) => (
-                  <tr key={agent.id} className="transition-colors"
-                    style={{ borderTop: '1px solid var(--border)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--muted)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
-                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{agent.name}</td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--foreground)' }}>{agent.totalCalls}</td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--foreground)' }}>{agent.successfulCalls}</td>
+                  <tr key={agent.id} className="border-t hover:bg-muted transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">{agent.name}</td>
+                    <td className="px-4 py-3 tabular-nums text-foreground">{agent.totalCalls}</td>
+                    <td className="px-4 py-3 tabular-nums text-foreground">{agent.successfulCalls}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                          <div className="h-full rounded-full" style={{
-                            width: `${agent.successRate}%`,
-                            background: agent.successRate >= 50
-                              ? 'oklch(0.55 0.215 163)' : 'oklch(0.59 0.245 15)',
-                          }} />
+                        <div className="w-16 h-1.5 rounded-full overflow-hidden bg-border">
+                          <div
+                            className={`h-full rounded-full ${agent.successRate >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                            style={{ width: `${agent.successRate}%` }}
+                          />
                         </div>
-                        <span className="text-xs tabular-nums font-medium" style={{ color: 'var(--foreground)' }}>
+                        <span className="text-xs tabular-nums font-medium text-foreground">
                           {agent.successRate}%
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
                       {formatDuration(agent.avgDuration)}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
                       {formatCurrency(agent.totalCost)}
                     </td>
                   </tr>
@@ -410,45 +384,38 @@ export default function AnalyticsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Campaign Comparison Table */}
-      <div className="rounded-2xl overflow-hidden"
-        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+      <Card className="shadow-none overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Campaign Cost Comparison</h3>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Cost and call volume per campaign</p>
+            <h3 className="font-semibold text-sm text-foreground">Campaign Cost Comparison</h3>
+            <p className="text-xs mt-0.5 text-muted-foreground">Cost and call volume per campaign</p>
           </div>
-          <button onClick={exportCampaigns} disabled={!campaignCostData?.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all hover:scale-105 disabled:opacity-40"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
+          <Button variant="outline" size="sm" onClick={exportCampaigns} disabled={!campaignCostData?.length}>
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
+          </Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: 'var(--muted)' }}>
+              <tr className="bg-muted">
                 {['Campaign', 'Total Cost', 'Calls', 'Avg Cost/Call'].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest"
-                    style={{ color: 'var(--muted-foreground)' }}>{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {(campaignCostData ?? []).length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>No campaign data</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">No campaign data</td></tr>
               ) : (
                 (campaignCostData ?? []).map((c: any, i: number) => (
-                  <tr key={i} className="transition-colors"
-                    style={{ borderTop: '1px solid var(--border)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--muted)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}>
-                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{c.label}</td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--foreground)' }}>{formatCurrency(c.amount)}</td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--foreground)' }}>{c.callCount}</td>
-                    <td className="px-4 py-3 tabular-nums text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  <tr key={i} className="border-t hover:bg-muted transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">{c.label}</td>
+                    <td className="px-4 py-3 tabular-nums text-foreground">{formatCurrency(c.amount)}</td>
+                    <td className="px-4 py-3 tabular-nums text-foreground">{c.callCount}</td>
+                    <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
                       {c.callCount > 0 ? formatCurrency(c.amount / c.callCount) : '—'}
                     </td>
                   </tr>
@@ -457,7 +424,7 @@ export default function AnalyticsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Recent Activity */}
       <RecentActivity calls={dashStats?.recentCalls ?? []} />

@@ -2,7 +2,10 @@
 
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { CsvImportDialog } from '@/components/contacts/CsvImportDialog'
@@ -127,27 +130,23 @@ export default function ContactsPage() {
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             placeholder="Search by name, phone or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm border outline-none"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            className="pl-9 pr-4"
           />
         </div>
 
-        <div className="flex items-center gap-1 p-1 rounded-xl"
-          style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted border border-border">
           {(['all', 'active', 'dnc'] as const).map((f) => (
-            <button key={f} onClick={() => setDncFilter(f)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={dncFilter === f ? {
-                background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                color: 'white',
-              } : { color: 'var(--muted-foreground)' }}>
+            <Button key={f} onClick={() => setDncFilter(f)}
+              variant={dncFilter === f ? 'default' : 'ghost'}
+              size="sm"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium">
               {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Do Not Call'}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -155,8 +154,7 @@ export default function ContactsPage() {
         <select
           value={agentFilter}
           onChange={(e) => setAgentFilter(e.target.value)}
-          className="text-xs px-3 py-2 rounded-xl bg-transparent outline-none"
-          style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          className="text-xs px-3 py-2 rounded-xl bg-transparent border border-border text-foreground outline-none"
         >
           <option value="">All Agents</option>
           <option value="shared">Shared</option>
@@ -164,74 +162,63 @@ export default function ContactsPage() {
         </select>
 
         <div className="flex items-center gap-2 ml-auto">
-          <button onClick={exportCsv} disabled={contacts.length === 0}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 disabled:opacity-40"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+          <Button onClick={exportCsv} disabled={contacts.length === 0}
+            variant="outline" size="sm"
+            className="flex items-center gap-2">
             <Download className="w-4 h-4" /> Export
-          </button>
-          <button onClick={() => setCsvOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+          </Button>
+          <Button onClick={() => setCsvOpen(true)}
+            variant="outline" size="sm"
+            className="flex items-center gap-2">
             <Upload className="w-4 h-4" /> Import CSV
-          </button>
-          <button onClick={() => setAddOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-              boxShadow: '0 4px 14px oklch(0.49 0.263 281 / 35%)',
-            }}>
+          </Button>
+          <Button onClick={() => setAddOpen(true)}
+            size="sm"
+            className="flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Contact
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Main layout: group sidebar + table */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ border: '1px solid var(--border)', display: 'flex', minHeight: '400px' }}
-      >
+      <div className="rounded-2xl overflow-hidden border border-border flex min-h-[400px]">
         <ContactGroupSidebar selectedGroupId={selectedGroupId} onSelect={(id) => { setSelectedGroupId(id); setSelectedIds([]) }} />
 
         {/* Contact table */}
-        <div style={{ flex: 1, overflow: 'auto', background: 'var(--card)' }}>
+        <div className="flex-1 overflow-auto bg-card">
           {isLoading ? (
             <div className="p-4 space-y-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-14 rounded-xl relative overflow-hidden"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                  <div className="absolute inset-0 shimmer" />
-                </div>
+                <div key={i} className="h-14 rounded-xl animate-pulse bg-muted border border-border" />
               ))}
             </div>
           ) : contacts.length === 0 ? (
             <div className="p-12 flex flex-col items-center justify-center text-center h-full">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: 'linear-gradient(135deg, oklch(0.49 0.263 281 / 15%), oklch(0.65 0.22 310 / 15%))', border: '1px solid oklch(0.49 0.263 281 / 20%)' }}>
-                <Users className="w-7 h-7" style={{ color: 'oklch(0.49 0.263 281)' }} />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-primary/10 border border-primary/20">
+                <Users className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
+              <h3 className="font-semibold mb-1 text-foreground">
                 {search ? 'No contacts found' : 'No contacts yet'}
               </h3>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="text-sm text-muted-foreground">
                 {search ? `No results for "${search}"` : 'Import a CSV or add contacts manually.'}
               </p>
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                <tr className="bg-muted border-b border-border">
                   <th className="px-3 py-3 text-left">
                     <input
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleSelectAll}
-                      style={{ accentColor: 'oklch(0.49 0.263 281)', width: '14px', height: '14px', cursor: 'pointer' }}
+                      className="w-3.5 h-3.5 cursor-pointer accent-primary"
                     />
                   </th>
                   {['Contact', 'Phone', 'Groups', 'Agent', 'Status', 'Added', ''].map((h, i) => (
                     <th key={i}
-                      className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest ${i === 1 ? 'hidden md:table-cell' : ''} ${i === 2 || i === 3 ? 'hidden lg:table-cell' : ''} ${i === 4 ? 'hidden lg:table-cell' : ''} ${i === 5 ? 'hidden xl:table-cell' : ''}`}
-                      style={{ color: 'var(--muted-foreground)' }}>
+                      className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground ${i === 1 ? 'hidden md:table-cell' : ''} ${i === 2 || i === 3 ? 'hidden lg:table-cell' : ''} ${i === 4 ? 'hidden lg:table-cell' : ''} ${i === 5 ? 'hidden xl:table-cell' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -246,56 +233,47 @@ export default function ContactsPage() {
                   return (
                     <tr
                       key={contact.id}
-                      className="group transition-colors cursor-pointer"
-                      style={{
-                        borderTop: idx > 0 ? '1px solid var(--border)' : 'none',
-                        background: isSelected ? 'oklch(0.49 0.263 281 / 4%)' : 'transparent',
-                      }}
+                      className={`group transition-colors cursor-pointer hover:bg-muted ${idx > 0 ? 'border-t border-border' : ''} ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setSelectedContact(contact)}
-                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--muted)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? 'oklch(0.49 0.263 281 / 4%)' : 'transparent' }}
                     >
                       <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(contact.id) }}>
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(contact.id)}
-                          style={{ accentColor: 'oklch(0.49 0.263 281)', width: '14px', height: '14px', cursor: 'pointer' }}
+                          className="w-3.5 h-3.5 cursor-pointer accent-primary"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))' }}>
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white bg-primary flex-shrink-0">
                             {(contact.name || contact.phoneNumber || '?')[0].toUpperCase()}
                           </div>
-                          <span className="font-medium text-sm truncate" style={{ color: 'var(--foreground)' }}>
-                            {contact.name || <span style={{ color: 'var(--muted-foreground)' }}>Unnamed</span>}
+                          <span className="font-medium text-sm truncate text-foreground">
+                            {contact.name || <span className="text-muted-foreground">Unnamed</span>}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Phone className="w-3 h-3 flex-shrink-0" /> {contact.phoneNumber}
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex gap-1 flex-wrap">
                           {groups.length === 0 ? (
-                            <span style={{ color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>—</span>
+                            <span className="text-muted-foreground text-xs">—</span>
                           ) : (
                             <>
                               {groups.slice(0, 2).map((g: any) => (
-                                <span key={g.id} className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                                  style={{ background: 'oklch(0.49 0.263 281 / 8%)', color: 'oklch(0.49 0.263 281)' }}>
+                                <Badge key={g.id} variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5">
                                   {g.name}
-                                </span>
+                                </Badge>
                               ))}
                               {groups.length > 2 && (
-                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                                  style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+                                <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0.5">
                                   +{groups.length - 2}
-                                </span>
+                                </Badge>
                               )}
                             </>
                           )}
@@ -303,57 +281,55 @@ export default function ContactsPage() {
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {assignedAgents.length === 0 ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: 'oklch(0.55 0.215 163 / 12%)', color: 'oklch(0.45 0.215 163)' }}>
+                          <Badge variant="secondary" className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600">
                             Shared
-                          </span>
+                          </Badge>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {assignedAgents.slice(0, 2).map((a: any) => (
-                              <span key={a.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                                style={{ background: 'oklch(0.6 0.19 220 / 10%)', color: 'oklch(0.45 0.19 220)' }}>
+                              <Badge key={a.id} variant="secondary" className="text-[10px] font-medium gap-1 bg-blue-500/10 text-blue-600">
                                 <Bot className="w-2.5 h-2.5" /> {a.name}
-                              </span>
+                              </Badge>
                             ))}
                             {assignedAgents.length > 2 && (
-                              <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>+{assignedAgents.length - 2}</span>
+                              <span className="text-[10px] text-muted-foreground">+{assignedAgents.length - 2}</span>
                             )}
                           </div>
                         )}
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {contact.doNotCall ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: 'oklch(0.59 0.245 15 / 12%)', color: 'oklch(0.52 0.245 15)' }}>
+                          <Badge variant="destructive" className="text-[10px] font-semibold gap-1 bg-red-500/10 text-red-600 border-0">
                             <ShieldOff className="w-2.5 h-2.5" /> DNC
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: 'oklch(0.55 0.215 163 / 12%)', color: 'oklch(0.45 0.215 163)' }}>
+                          <Badge variant="secondary" className="text-[10px] font-semibold gap-1 bg-emerald-500/10 text-emerald-600">
                             <Shield className="w-2.5 h-2.5" /> Active
-                          </span>
+                          </Badge>
                         )}
                       </td>
                       <td className="px-4 py-3 hidden xl:table-cell">
-                        <span className="text-xs tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
+                        <span className="text-xs tabular-nums text-muted-foreground">
                           {formatDate(contact.createdAt)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => toggleDncMutation.mutate({ id: contact.id, doNotCall: !contact.doNotCall })}
-                            className="p-1.5 rounded-lg transition-all hover:scale-105"
-                            title={contact.doNotCall ? 'Remove from DNC' : 'Add to DNC'}
-                            style={{ color: contact.doNotCall ? 'oklch(0.55 0.215 163)' : 'oklch(0.72 0.18 68)' }}>
+                            className={`h-7 w-7 ${contact.doNotCall ? 'text-emerald-500' : 'text-amber-500'}`}
+                            title={contact.doNotCall ? 'Remove from DNC' : 'Add to DNC'}>
                             {contact.doNotCall ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => { if (confirm('Delete this contact?')) deleteMutation.mutate(contact.id) }}
-                            className="p-1.5 rounded-lg transition-all hover:scale-105"
-                            style={{ color: 'oklch(0.59 0.245 15)' }}>
+                            className="h-7 w-7 text-red-500">
                             <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -367,7 +343,7 @@ export default function ContactsPage() {
 
       {/* Count */}
       {!isLoading && contacts.length > 0 && (
-        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-xs text-muted-foreground">
           {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
           {search && ` matching "${search}"`}
           {selectedIds.length > 0 && ` · ${selectedIds.length} selected`}
@@ -387,155 +363,141 @@ export default function ContactsPage() {
       {selectedContact && (
         <>
           <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedContact(null)} />
-          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg overflow-y-auto"
-            style={{ background: 'var(--background)', borderLeft: '1px solid var(--border)' }}>
-            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
-              style={{ background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
+          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg overflow-y-auto bg-background border-l border-border">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-background border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white bg-primary">
                   {(selectedContact.name || selectedContact.phoneNumber || '?')[0].toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm" style={{ color: 'var(--foreground)' }}>
+                  <h3 className="font-bold text-sm text-foreground">
                     {selectedContact.name || 'Unnamed Contact'}
                   </h3>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{selectedContact.phoneNumber}</p>
+                  <p className="text-xs text-muted-foreground">{selectedContact.phoneNumber}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedContact(null)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedContact(null)}
+                className="h-8 w-8">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-6 space-y-5">
               {/* Contact Info */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl p-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-3 bg-muted border border-border">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Phone className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
-                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--muted-foreground)' }}>Phone</p>
+                    <Phone className="w-3 h-3 text-muted-foreground" />
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Phone</p>
                   </div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{selectedContact.phoneNumber}</p>
+                  <p className="text-sm font-medium text-foreground">{selectedContact.phoneNumber}</p>
                 </div>
-                <div className="rounded-xl p-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-3 bg-muted border border-border">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Mail className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
-                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--muted-foreground)' }}>Email</p>
+                    <Mail className="w-3 h-3 text-muted-foreground" />
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Email</p>
                   </div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{selectedContact.email || '—'}</p>
+                  <p className="text-sm font-medium text-foreground">{selectedContact.email || '—'}</p>
                 </div>
               </div>
 
               {/* DNC Status */}
-              <div className="flex items-center justify-between p-3 rounded-xl"
-                style={{
-                  background: selectedContact.doNotCall ? 'oklch(0.59 0.245 15 / 6%)' : 'oklch(0.55 0.215 163 / 6%)',
-                  border: `1px solid ${selectedContact.doNotCall ? 'oklch(0.59 0.245 15 / 20%)' : 'oklch(0.55 0.215 163 / 20%)'}`,
-                }}>
+              <div className={`flex items-center justify-between p-3 rounded-xl border ${selectedContact.doNotCall ? 'bg-red-500/5 border-red-500/20' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
                 <div className="flex items-center gap-2">
                   {selectedContact.doNotCall
-                    ? <ShieldOff className="w-4 h-4" style={{ color: 'oklch(0.59 0.245 15)' }} />
-                    : <Shield className="w-4 h-4" style={{ color: 'oklch(0.55 0.215 163)' }} />}
-                  <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    ? <ShieldOff className="w-4 h-4 text-red-500" />
+                    : <Shield className="w-4 h-4 text-emerald-500" />}
+                  <span className="text-sm font-medium text-foreground">
                     {selectedContact.doNotCall ? 'Do Not Call' : 'Active — Available for campaigns'}
                   </span>
                 </div>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     toggleDncMutation.mutate({ id: selectedContact.id, doNotCall: !selectedContact.doNotCall })
                     setSelectedContact({ ...selectedContact, doNotCall: !selectedContact.doNotCall })
                   }}
-                  className="text-xs font-medium px-3 py-1 rounded-lg"
-                  style={{ background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
+                  className="text-xs">
                   {selectedContact.doNotCall ? 'Remove DNC' : 'Mark DNC'}
-                </button>
+                </Button>
               </div>
 
               {/* Groups */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Tag className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Groups</p>
+                  <Tag className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">Groups</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(selectedContact.groupMemberships || []).length > 0
                     ? selectedContact.groupMemberships.map((m: any) => (
-                      <span key={m.group.id} className="px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{ background: 'oklch(0.49 0.263 281 / 10%)', color: 'oklch(0.49 0.263 281)' }}>
+                      <Badge key={m.group.id} variant="secondary" className="text-xs">
                         {m.group.name}
-                      </span>
+                      </Badge>
                     ))
-                    : <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No groups</p>}
+                    : <p className="text-xs text-muted-foreground">No groups</p>}
                 </div>
               </div>
 
               {/* Agent Assignments */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Bot className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Assigned Agents</p>
+                  <Bot className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">Assigned Agents</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(selectedContact.agentAssignments || []).length > 0
                     ? selectedContact.agentAssignments.map((a: any) => (
-                      <span key={a.agent.id} className="px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{ background: 'oklch(0.6 0.19 220 / 10%)', color: 'oklch(0.45 0.19 220)' }}>
+                      <Badge key={a.agent.id} variant="secondary" className="text-xs bg-blue-500/10 text-blue-600">
                         {a.agent.name}
-                      </span>
+                      </Badge>
                     ))
-                    : <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: 'oklch(0.55 0.215 163 / 12%)', color: 'oklch(0.45 0.215 163)' }}>
+                    : <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600">
                       Shared
-                    </span>}
+                    </Badge>}
                 </div>
               </div>
 
               {/* Tags */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Tag className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Tags</p>
+                  <Tag className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">Tags</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(selectedContact.tags || []).length > 0
                     ? selectedContact.tags.map((tag: string) => (
-                      <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{ background: 'oklch(0.49 0.263 281 / 10%)', color: 'oklch(0.49 0.263 281)' }}>
+                      <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
-                      </span>
+                      </Badge>
                     ))
-                    : <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No tags</p>}
+                    : <p className="text-xs text-muted-foreground">No tags</p>}
                 </div>
               </div>
 
               {/* Call History */}
               <div>
                 <div className="flex items-center gap-1.5 mb-3">
-                  <History className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Call History</p>
+                  <History className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">Call History</p>
                 </div>
                 {(contactCalls?.calls || []).length === 0 ? (
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>No calls yet</p>
+                  <p className="text-xs text-muted-foreground">No calls yet</p>
                 ) : (
                   <div className="space-y-2">
                     {(contactCalls?.calls || []).map((call: any) => (
-                      <div key={call.id} className="rounded-xl p-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                      <div key={call.id} className="rounded-xl p-3 bg-muted border border-border">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
+                          <span className="text-xs font-semibold text-foreground">
                             {call.agent?.name || 'Unknown Agent'}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                            style={{
-                              background: call.status === 'COMPLETED' ? 'oklch(0.55 0.215 163 / 12%)' : 'oklch(0.59 0.245 15 / 12%)',
-                              color: call.status === 'COMPLETED' ? 'oklch(0.45 0.215 163)' : 'oklch(0.52 0.245 15)',
-                            }}>
+                          <Badge variant={call.status === 'COMPLETED' ? 'secondary' : 'destructive'}
+                            className={`text-[10px] font-semibold ${call.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 border-0' : 'bg-red-500/10 text-red-600 border-0'}`}>
                             {call.status}
-                          </span>
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-3 text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                           <span>{formatDate(call.startedAt)}</span>
                           {call.duration && <span>{formatDuration(call.duration)}</span>}
                           {call.cost && <span>{formatCurrency(call.cost)}</span>}
@@ -566,48 +528,37 @@ export default function ContactsPage() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--muted-foreground)' }}>Phone Number *</Label>
+              <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number *</Label>
               <Input id="phone" value={newContact.phoneNumber}
                 onChange={(e) => setNewContact({ ...newContact, phoneNumber: e.target.value })}
                 placeholder="+1 (555) 123-4567" className="mt-1.5" />
             </div>
             <div>
-              <Label htmlFor="cname" className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--muted-foreground)' }}>Full Name</Label>
+              <Label htmlFor="cname" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Full Name</Label>
               <Input id="cname" value={newContact.name}
                 onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                 placeholder="John Smith" className="mt-1.5" />
             </div>
             <div>
-              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--muted-foreground)' }}>Email Address</Label>
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Address</Label>
               <Input id="email" value={newContact.email}
                 onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
                 placeholder="john@example.com" className="mt-1.5" />
             </div>
             <div>
-              <Label htmlFor="tags" className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--muted-foreground)' }}>Tags (comma-separated)</Label>
+              <Label htmlFor="tags" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tags (comma-separated)</Label>
               <Input id="tags" value={newContact.tags}
                 onChange={(e) => setNewContact({ ...newContact, tags: e.target.value })}
                 placeholder="vip, lead, follow-up" className="mt-1.5" />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setAddOpen(false)}
-                className="px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)', background: 'var(--muted)' }}>
+              <Button variant="outline" onClick={() => setAddOpen(false)}>
                 Cancel
-              </button>
-              <button onClick={() => createMutation.mutate(newContact)}
-                disabled={!newContact.phoneNumber || createMutation.isPending}
-                className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
-                style={{
-                  background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                  boxShadow: '0 4px 14px oklch(0.49 0.263 281 / 35%)',
-                }}>
+              </Button>
+              <Button onClick={() => createMutation.mutate(newContact)}
+                disabled={!newContact.phoneNumber || createMutation.isPending}>
                 {createMutation.isPending ? 'Adding...' : 'Add Contact'}
-              </button>
+              </Button>
             </div>
           </div>
         </DialogContent>

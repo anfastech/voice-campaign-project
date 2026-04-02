@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
 enum VoiceProvider {
   ULTRAVOX
   ELEVENLABS
@@ -27,7 +32,11 @@ model User {
   image                  String?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  password               String?
+  role                   UserRole                @default(ADMIN)
   agents                 Agent[]
+  clients                Client[]
+  brandingSettings       BrandingSettings?
   campaigns              Campaign[]
   contacts               Contact[]
   knowledgeBaseDocuments KnowledgeBaseDocument[]
@@ -70,6 +79,7 @@ model Agent {
   tools                  AgentTool[]
   knowledgeBaseDocuments KnowledgeBaseDocument[]
   contactAssignments     ContactAgentAssignment[]
+  clientAgents           ClientAgent[]
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
@@ -319,4 +329,48 @@ model ContactAgentAssignment {
   @@unique([contactId, agentId])
   @@index([contactId])
   @@index([agentId])
+}
+
+model Client {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  passwordHash  String
+  companyName   String?
+  logo          String?
+  notes         String?       @db.Text
+  isActive      Boolean       @default(true)
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents        ClientAgent[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model ClientAgent {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, agentId])
+  @@index([clientId])
+  @@index([agentId])
+}
+
+model BrandingSettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformName  String   @default("Voice Campaign Platform")
+  logoUrl       String?
+  faviconUrl    String?
+  primaryColor  String   @default("#171717")
+  accentColor   String   @default("#3b82f6")
+  updatedAt     DateTime @updatedAt
 }

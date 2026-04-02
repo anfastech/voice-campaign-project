@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
+import bcrypt from 'bcryptjs'
 import 'dotenv/config'
 
 const pool = new pg.Pool({
@@ -22,17 +23,21 @@ async function main() {
   )
 
   // --- Step 2: Upsert user & contacts (kept across seeds) ---
+  const passwordHash = await bcrypt.hash('12345678', 12)
+
   const user = await prisma.user.upsert({
-    where: { email: 'mohammedanfaskp@gmail.com' },
-    update: {},
+    where: { id: 'default-user' },
+    update: { email: 'admin@voicecampaign.ai', name: 'Admin', password: passwordHash, role: 'ADMIN' },
     create: {
       id: 'default-user',
-      email: 'mohammedanfaskp@gmail.com',
-      name: 'anfas',
+      name: 'Admin',
+      email: 'admin@voicecampaign.ai',
+      password: passwordHash,
+      role: 'ADMIN',
     },
   })
 
-  console.log('Created user:', user.email)
+  console.log('Seeded admin user:', user.email)
 
   const contacts = await Promise.all([
     prisma.contact.upsert({

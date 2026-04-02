@@ -1,16 +1,16 @@
 import { prisma } from '@/lib/prisma'
 
-export async function listContactGroups() {
+export async function listContactGroups(userId: string) {
   return prisma.contactGroup.findMany({
-    where: { userId: 'default-user' },
+    where: { userId },
     include: { _count: { select: { members: true } } },
     orderBy: { name: 'asc' },
   })
 }
 
-export async function createContactGroup(data: { name: string; description?: string }) {
+export async function createContactGroup(userId: string, data: { name: string; description?: string }) {
   return prisma.contactGroup.create({
-    data: { ...data, userId: 'default-user' },
+    data: { ...data, userId },
     include: { _count: { select: { members: true } } },
   })
 }

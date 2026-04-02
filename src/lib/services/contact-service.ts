@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 
-export async function listContacts(params: {
+export async function listContacts(userId: string, params: {
   search?: string
   page?: number
   limit?: number
@@ -11,7 +11,7 @@ export async function listContacts(params: {
 }) {
   const { search, page = 1, limit = 100, groupId, agentId, tag, doNotCall } = params
 
-  const where: Record<string, unknown> = { userId: 'default-user' }
+  const where: Record<string, unknown> = { userId }
 
   if (search) {
     where.OR = [
@@ -57,7 +57,7 @@ export async function listContacts(params: {
   return { contacts, total, page, limit, pages: Math.ceil(total / limit) }
 }
 
-export async function createContact(data: {
+export async function createContact(userId: string, data: {
   phoneNumber: string
   name?: string
   email?: string
@@ -71,7 +71,7 @@ export async function createContact(data: {
       email: data.email,
       tags: data.tags ?? [],
       doNotCall: data.doNotCall ?? false,
-      userId: 'default-user',
+      userId,
     },
   })
   return contact
@@ -133,7 +133,7 @@ export async function unassignContactsFromAgent(contactIds: string[], agentId: s
   })
 }
 
-export async function importContacts(csvData: Array<Record<string, string>>) {
+export async function importContacts(userId: string, csvData: Array<Record<string, string>>) {
   const results = await Promise.allSettled(
     csvData.map(async (row) => {
       const phoneNumber = (
@@ -143,7 +143,7 @@ export async function importContacts(csvData: Array<Record<string, string>>) {
 
       return prisma.contact.upsert({
         where: {
-          userId_phoneNumber: { userId: 'default-user', phoneNumber },
+          userId_phoneNumber: { userId, phoneNumber },
         },
         update: {
           name: row.name || row.Name || undefined,
@@ -154,7 +154,7 @@ export async function importContacts(csvData: Array<Record<string, string>>) {
           name: row.name || row.Name || undefined,
           email: row.email || row.Email || undefined,
           tags: row.tags ? row.tags.split(',').map((t: string) => t.trim()) : [],
-          userId: 'default-user',
+          userId,
         },
       })
     })

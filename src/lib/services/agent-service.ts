@@ -14,9 +14,9 @@ function withKbInstruction(systemPrompt: string): string {
   return systemPrompt + KB_INSTRUCTION
 }
 
-export async function listAgents() {
+export async function listAgents(userId: string) {
   const agents = await prisma.agent.findMany({
-    where: { userId: 'default-user', isActive: true },
+    where: { userId, isActive: true },
     include: {
       _count: { select: { calls: true, campaigns: true } },
     },
@@ -26,7 +26,7 @@ export async function listAgents() {
   return agents
 }
 
-export async function createAgent(data: {
+export async function createAgent(userId: string, data: {
   name: string
   description?: string
   systemPrompt: string
@@ -44,7 +44,7 @@ export async function createAgent(data: {
   const agent = await prisma.agent.create({
     data: {
       ...rest,
-      userId: 'default-user',
+      userId,
       ...(providerConfig ? { providerConfig: providerConfig as Record<string, string> } : {}),
     },
   })

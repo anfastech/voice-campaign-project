@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getProvider } from '@/lib/providers'
 import { checkCampaignCompletion } from '@/lib/services/webhook-service'
 
-export async function listCampaigns(params: {
+export async function listCampaigns(userId: string, params: {
   status?: string
   agentId?: string
   page?: number
@@ -11,7 +11,7 @@ export async function listCampaigns(params: {
   const { status, agentId, page = 1, limit = 50 } = params
 
   const where = {
-    userId: 'default-user',
+    userId,
     ...(status
       ? { status: status as 'DRAFT' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'CANCELLED' | 'SCHEDULED' }
       : {}),
@@ -35,7 +35,7 @@ export async function listCampaigns(params: {
   return { campaigns, total, page, limit, pages: Math.ceil(total / limit) }
 }
 
-export async function createCampaign(data: {
+export async function createCampaign(userId: string, data: {
   name: string
   description?: string
   agentId: string
@@ -50,7 +50,7 @@ export async function createCampaign(data: {
       name: data.name,
       description: data.description,
       agentId: data.agentId,
-      userId: 'default-user',
+      userId,
       scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
       maxRetries: data.maxRetries ?? 3,
       retryDelayMinutes: data.retryDelayMinutes ?? 60,

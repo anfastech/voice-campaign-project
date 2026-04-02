@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-02] — Fix Self-Cancelling Calls (3-Second Drop)
+
+### Fixed
+- **APP_URL pointed to dead ngrok tunnel** — Updated from stale ngrok URL to Vercel deployment (`https://voice-agents-dun.vercel.app`). ElevenLabs post-call webhooks were being sent to an unreachable URL, leaving calls stuck in `INITIATED` status.
+- **Stuck INITIATED calls cleaned up** — Marked 2 orphaned calls (`cmnh1gtuz`, `cmnh635k6`) as `FAILED` with explanatory error message via SQL.
+
+### Added
+- **Agent diagnose API route** (`GET /api/agents/[id]/diagnose`) — Fetches ElevenLabs agent config and recent conversation details to debug call failures. Shows webhook URL mismatch, termination reasons, and transcript data.
+
 ## [Unreleased]
 
 ### Added — Contacts: Groups, Agent Assignment, Sidebar

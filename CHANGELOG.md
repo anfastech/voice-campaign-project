@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — White-Label Branding Settings
+
+### Added
+- **api/branding/route.ts** — GET/PATCH API for branding settings (platform name, logo URL, favicon URL, primary/accent colors). Admin-only, upserts per user.
+- **branding/page.tsx** — Admin branding page with platform identity card (name, logo, favicon), color pickers with hex input, live preview strip, and reset-to-defaults button.
+
 ## [2026-04-03] — Client Management UI
 
 ### Added

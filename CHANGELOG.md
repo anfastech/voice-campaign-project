@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — Client Management UI
+
+### Added
+- **clients/page.tsx** — Client list page with card-per-client layout, active/inactive toggle badge, delete button, agent count badge, and empty state.
+- **clients/new/page.tsx** — New client form with name, email, password, company name, and notes fields. Redirects to detail page on success.
+- **clients/[id]/page.tsx** — Client detail page with client info card, password reset section, agent assignment toggle list, and danger zone for deletion.
+- **Sidebar** — Added "Clients" nav item with Building2 icon between "Your Agents" and "Settings".
+
+## [2026-04-03] — NextAuth Credentials Auth for Admin & Client Login
+
+### Added
+- **auth.ts** — NextAuth v5 configuration with two Credentials providers (`admin-login` and `client-login`). JWT-based sessions with role/userId/adminUserId claims.
+- **auth-utils.ts** — Helper functions: `getSessionUser`, `getAdminUserId`, `requireAuth`, `requireAdmin` for use in API routes and server components.
+- **[...nextauth]/route.ts** — API route handler exporting GET/POST from NextAuth handlers.
+- **Providers.tsx** — Wrapped app in `SessionProvider` from `next-auth/react` for client-side session access.
+
 ## [2026-04-02] — shadcn/ui Clean Dashboard Overhaul
 
 ### Changed

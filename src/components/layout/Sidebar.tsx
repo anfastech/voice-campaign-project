@@ -12,6 +12,7 @@ import {
   Users,
   Phone,
   Megaphone,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
   { href: '/agents', label: 'Your Agents', icon: Bot },
+  { href: '/clients', label: 'Clients', icon: Building2 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

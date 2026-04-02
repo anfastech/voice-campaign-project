@@ -1,18 +1,11 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Moon, Sun, ChevronRight, LogOut, User, RefreshCw, Settings, CheckCircle2, XCircle, PhoneMissed, Megaphone } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { usePathname } from 'next/navigation'
+import { signOut } from 'next-auth/react'
+import { Moon, Sun, RefreshCw, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 
 const pageTitles: Record<string, string> = {
   '/campaigns/new': 'New Campaign',
@@ -67,6 +60,10 @@ export function Header() {
             {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </Button>
         )}
+
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => signOut({ callbackUrl: '/login' })}>
+          <LogOut className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </header>
   )

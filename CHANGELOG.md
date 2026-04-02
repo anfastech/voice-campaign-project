@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-03] — Client Dashboard: Layout, Sidebar & API
+
+### Added
+- **ClientSidebar** (`src/components/layout/ClientSidebar.tsx`) — Client-facing sidebar with Analytics, Conversations, Contacts, Campaigns, and Agents nav items under `/client/*` routes.
+- **Client layout** (`src/app/client/layout.tsx`) — Layout wrapper with ClientSidebar and shared Header for all client pages.
+- **Client dashboard** (`src/app/client/dashboard/page.tsx`) — Dashboard page showing stat cards (total calls, successful, avg duration, total cost) and assigned agent cards with live refresh.
+- **API: `/api/client/agents`** — Returns agents assigned to the authenticated client via `ClientAgent` join table.
+- **API: `/api/client/analytics`** — Aggregates call stats (count, success, avg duration, cost) scoped to the client's assigned agents.
+- **API: `/api/client/conversations`** — Paginated call list with agent/contact includes, filtered by status, scoped to client's agents.
+
 ## [2026-04-03] — API Routes: Session-Based userId
 
 ### Changed

@@ -1,12 +1,11 @@
-import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export default auth((req) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const session = req.auth
-  const user = session?.user as any
 
-  // Public routes
+  // Public routes — no auth needed
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
@@ -17,20 +16,30 @@ export default auth((req) => {
     return NextResponse.next()
   }
 
+  // Check JWT token (Edge-compatible, no Prisma/crypto dependency)
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
+  })
+
   // Not logged in → redirect to login
-  if (!session) {
+  if (!token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
+  const role = token.role as string
+
   // Root → redirect based on role
   if (pathname === '/') {
-    const dest = user?.role === 'client' ? '/client/dashboard' : '/analytics'
+    const dest = role === 'client' ? '/client/dashboard' : '/analytics'
     return NextResponse.redirect(new URL(dest, req.url))
   }
 
   // Client trying to access admin routes
-  if (user?.role === 'client' && !pathname.startsWith('/client') && !pathname.startsWith('/api/client') && !pathname.startsWith('/api/auth')) {
-    // Allow client access to shared API routes for data fetching
+  if (role === 'client' && !pathname.startsWith('/client') && !pathname.startsWith('/api/client') && !pathname.startsWith('/api/auth')) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.next()
     }
@@ -38,7 +47,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],

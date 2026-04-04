@@ -18,7 +18,7 @@ export default async function proxy(req: NextRequest) {
   // Check JWT token
   const token = await getToken({
     req,
-    secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
   })
 
   // Login pages — redirect to dashboard if already authenticated

@@ -85,5 +85,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: '/login', // Client login — admin uses /admin
   },
   session: { strategy: 'jwt' },
-  secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
+  trustHost: true,
 })

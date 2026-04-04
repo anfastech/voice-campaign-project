@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-export async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Static/API routes — no auth needed
@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check JWT token (Edge-compatible, no Prisma/crypto dependency)
+  // Check JWT token
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',

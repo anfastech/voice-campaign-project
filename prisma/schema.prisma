@@ -54,6 +54,7 @@ model User {
   contactGroups          ContactGroup[]
   leads                  Lead[]
   customMenuItems        CustomMenuItem[]
+  topics                 Topic[]
 }
 
 model Agent {
@@ -215,6 +216,7 @@ model Call {
   errorMessage       String?    @db.Text
   metadata           Json?
   lead               Lead?
+  callTopics         CallTopic[]
   startedAt          DateTime   @default(now())
   answeredAt         DateTime?
   endedAt            DateTime?
@@ -283,12 +285,15 @@ model KnowledgeBaseDocument {
   syncError          String?
   agentId            String?
   agent              Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  clientId           String?
+  client             Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([agentId])
+  @@index([clientId])
 }
 
 model AgentTool {
@@ -352,14 +357,17 @@ model Client {
   passwordHash  String
   companyName   String?
   logo          String?
-  notes         String?       @db.Text
-  isActive      Boolean       @default(true)
+  notes           String?       @db.Text
+  dashboardConfig Json?
+  isActive        Boolean       @default(true)
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agents        ClientAgent[]
-  integration   ClientIntegration?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  agents            ClientAgent[]
+  integration       ClientIntegration?
+  branding          ClientBranding?
+  knowledgeBaseDocs KnowledgeBaseDocument[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([userId])
   @@index([isActive])
@@ -441,4 +449,41 @@ model CustomMenuItem {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model Topic {
+  id        String      @id @default(cuid())
+  name      String
+  color     String      @default("#3b82f6")
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calls     CallTopic[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model CallTopic {
+  id      String   @id @default(cuid())
+  callId  String
+  call    Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  topicId String
+  topic   Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, topicId])
+  @@index([callId])
+  @@index([topicId])
+}
+
+model ClientBranding {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platformName String?
+  logoUrl      String?
+  primaryColor String?
+  accentColor  String?
+  updatedAt    DateTime @updatedAt
 }

@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-05] — Topics, Knowledge Base, Analytics, Branding & Agent Settings
+
+### Added
+- **Topics system** — Admin creates topics, tags calls with them, clients see topic breakdown chart and list
+  - Topic model (name, color) with CallTopic many-to-many join to Call
+  - Admin CRUD: `GET/POST /api/topics`, `DELETE /api/topics/[id]`
+  - Tag calls: `PATCH /api/calls/[id]/topics`
+  - Client analytics: `GET /api/client/analytics/topic-breakdown`
+  - TopicBreakdownChart component (horizontal bar chart)
+  - Client topics page: `/client/topics`
+- **Knowledge Base (client access)** — Clients can browse and add TEXT/URL docs for their agents
+  - `GET/POST /api/client/knowledge-base`, `DELETE /api/client/knowledge-base/[id]`
+  - Client KB page with add form, sync status badges, delete own docs
+  - KnowledgeBaseDocument.clientId tracks client-created docs
+- **More analytics** — 3 new toggleable widgets
+  - Total Call Minutes KPI card
+  - Contacts Reached KPI card
+  - Reason Call Ended donut chart (from metadata.termination_reason or status)
+  - ReasonEndedChart component
+  - `GET /api/client/analytics/reason-ended`
+- **Per-client branding** — Admin sets per-client colors, logo, platform name
+  - ClientBranding model (platformName, logoUrl, primaryColor, accentColor)
+  - Admin editor: `GET/PATCH /api/clients/[id]/branding`
+  - Client resolver: `GET /api/client/branding` (merges client → admin fallback)
+  - ClientBrandingEditor component on admin client detail page
+  - Client sidebar shows client's logo and platform name
+- **Agent settings (client view)** — Clients can view agent details and optionally edit
+  - Agent detail page: `/client/agents/[id]` — shows prompt, voice, stats
+  - `GET/PATCH /api/client/agents/[id]` — edit gated by `editSettings` config flag
+  - Agent cards now clickable links to detail page
+- **Dashboard config expanded** — New toggleable sections: Knowledge Base, Topics. New analytics features: totalCallMinutes, contactsReached, reasonCallEnded. Agent sub-features: viewDetails, editSettings.
+
+---
+
+## [2026-04-05] — ChatDash-Style Client Dashboard Customization
+
+### Added
+- **Per-client dashboard config** — Agencies can customize what each client sees via toggle switches on the client detail page
+- **Section-level toggles** — Enable/disable Analytics, Conversations, Contacts, Campaigns, Leads, Agents per client
+- **Analytics sub-feature toggles** — Control individual widgets: KPI cards, charts, lead pipeline, agent comparison table
+- **Live preview** — Admin clicks "Preview" to open a new tab showing exactly what the client will see
+- **Preview banner** — Fixed bar at top in preview mode with close button
+- **`dashboardConfig` JSON field** on Client model — stores per-client config, null = everything visible (backward compatible)
+- **Config API routes** — `GET/PATCH /api/clients/[id]/dashboard-config` (admin), `GET /api/client/dashboard-config` (client)
+- **DashboardConfigEditor component** — Reusable admin UI with section toggles, expandable analytics features, save/preview buttons
+- **`src/lib/dashboard-config.ts`** — Shared types, Zod schema, defaults, SECTION_REGISTRY, resolveDashboardConfig()
+
+### Changed
+- Client sidebar now reads dashboard config and filters nav items dynamically
+- Client dashboard conditionally renders each widget based on config
+- KPI grid adapts columns based on number of enabled stat cards
+- Client layout wrapped in Suspense for useSearchParams compatibility
+
+---
+
 ## [2026-04-05] — Campaign Scheduling, Auto-Start, Group-Based Creation & Agent End-Call
 
 ### Added

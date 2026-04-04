@@ -1,33 +1,49 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Bot, Zap, BarChart3, MessageSquare, Users, Megaphone, Target,
-  Link as LinkIcon, FileText, HelpCircle, BookOpen, ExternalLink,
+  Bot, Zap, BarChart3, MessageSquare, Users, Megaphone, Target, BookOpen, Tags,
+  Link as LinkIcon, FileText, HelpCircle, ExternalLink,
   Globe, Mail, Calendar, Clipboard, Star, Heart, Shield, Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import type { LucideIcon } from 'lucide-react'
+import type { DashboardConfig, SectionKey } from '@/lib/dashboard-config'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Link: LinkIcon, FileText, HelpCircle, BookOpen, ExternalLink,
   Globe, Mail, Calendar, Clipboard, Star, Heart, Zap, Shield, Bell,
 }
 
-const navItems = [
-  { href: '/client/dashboard', label: 'Analytics', icon: BarChart3 },
-  { href: '/client/conversations', label: 'Conversations', icon: MessageSquare },
-  { href: '/client/contacts', label: 'Contacts', icon: Users },
-  { href: '/client/campaigns', label: 'Campaigns', icon: Megaphone },
-  { href: '/client/leads', label: 'Leads', icon: Target },
-  { href: '/client/agents', label: 'Agents', icon: Bot },
+const navItems: Array<{ href: string; label: string; icon: LucideIcon; sectionKey: SectionKey }> = [
+  { href: '/client/dashboard', label: 'Analytics', icon: BarChart3, sectionKey: 'analytics' },
+  { href: '/client/conversations', label: 'Conversations', icon: MessageSquare, sectionKey: 'conversations' },
+  { href: '/client/contacts', label: 'Contacts', icon: Users, sectionKey: 'contacts' },
+  { href: '/client/campaigns', label: 'Campaigns', icon: Megaphone, sectionKey: 'campaigns' },
+  { href: '/client/leads', label: 'Leads', icon: Target, sectionKey: 'leads' },
+  { href: '/client/agents', label: 'Agents', icon: Bot, sectionKey: 'agents' },
+  { href: '/client/knowledge-base', label: 'Knowledge Base', icon: BookOpen, sectionKey: 'knowledgeBase' },
+  { href: '/client/topics', label: 'Topics', icon: Tags, sectionKey: 'topics' },
 ]
 
 export function ClientSidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isPreview = searchParams.get('preview') === 'true'
+  const previewClientId = searchParams.get('clientId')
+
+  const configEndpoint = isPreview && previewClientId
+    ? `/api/clients/${previewClientId}/dashboard-config`
+    : '/api/client/dashboard-config'
+
+  const { data: config } = useQuery<DashboardConfig>({
+    queryKey: ['client-dashboard-config', isPreview ? previewClientId : 'self'],
+    queryFn: () => fetch(configEndpoint).then((r) => r.json()),
+    staleTime: 60_000,
+  })
 
   const { data: customItems } = useQuery({
     queryKey: ['client-menu'],
@@ -35,19 +51,34 @@ export function ClientSidebar() {
     staleTime: 60_000,
   })
 
+  const { data: branding } = useQuery({
+    queryKey: ['client-branding'],
+    queryFn: () => fetch('/api/client/branding').then((r) => r.json()),
+    staleTime: 60_000,
+  })
+
+  // Filter nav items based on config
+  const visibleNavItems = config?.sections
+    ? navItems.filter((item) => config.sections[item.sectionKey]?.enabled !== false)
+    : navItems
+
   return (
     <aside className="w-64 min-w-[256px] min-h-screen flex flex-col bg-sidebar border-r border-sidebar-border shrink-0">
       <div className="flex items-center gap-3 px-5 py-5">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <Zap className="w-4 h-4 text-primary-foreground" fill="currentColor" />
-        </div>
-        <span className="font-semibold text-sm text-sidebar-foreground">Voice Platform</span>
+        {branding?.logoUrl ? (
+          <img src={branding.logoUrl} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+        ) : (
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <Zap className="w-4 h-4 text-primary-foreground" fill="currentColor" />
+          </div>
+        )}
+        <span className="font-semibold text-sm text-sidebar-foreground">{branding?.platformName || 'Voice Platform'}</span>
       </div>
 
       <Separator />
 
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (

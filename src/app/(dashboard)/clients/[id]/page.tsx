@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { DashboardConfigEditor } from '@/components/clients/DashboardConfigEditor'
+import { ClientBrandingEditor } from '@/components/clients/ClientBrandingEditor'
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -221,6 +223,12 @@ export default function ClientDetailPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Dashboard Customization */}
+      <DashboardConfigEditor clientId={id} clientName={client.name} />
+
+      {/* Client Branding */}
+      <ClientBrandingEditor clientId={id} clientName={client.name} />
 
       {/* Phone Integration */}
       <Card className="shadow-none">

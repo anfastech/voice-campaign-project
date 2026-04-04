@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { StatCard } from '@/components/ui/stat-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/lib/utils'
-import { Download } from 'lucide-react'
+import { Download, X } from 'lucide-react'
+import type { DashboardConfig } from '@/lib/dashboard-config'
 
 // ---------- Dynamic chart imports ----------
 function ChartSkeleton() {
@@ -28,6 +30,10 @@ const SuccessRateTrend = dynamic(
 )
 const HeatmapChart = dynamic(
   () => import('@/components/analytics/HeatmapChart').then((m) => m.HeatmapChart),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+)
+const ReasonEndedChart = dynamic(
+  () => import('@/components/analytics/ReasonEndedChart').then((m) => m.ReasonEndedChart),
   { ssr: false, loading: () => <ChartSkeleton /> }
 )
 
@@ -88,6 +94,21 @@ const LEAD_COLORS: Record<string, string> = {
 // ---------- Page component ----------
 export default function ClientDashboard() {
   const [datePreset, setDatePreset] = useState('30d')
+  const searchParams = useSearchParams()
+  const isPreview = searchParams.get('preview') === 'true'
+  const previewClientId = searchParams.get('clientId')
+
+  const configEndpoint = isPreview && previewClientId
+    ? `/api/clients/${previewClientId}/dashboard-config`
+    : '/api/client/dashboard-config'
+
+  const { data: config } = useQuery<DashboardConfig>({
+    queryKey: ['client-dashboard-config', isPreview ? previewClientId : 'self'],
+    queryFn: () => fetch(configEndpoint).then((r) => r.json()),
+    staleTime: 60_000,
+  })
+
+  const f = config?.sections?.analytics?.features
 
   const dateRange = useMemo(() => getDateRange(datePreset), [datePreset])
   const dateParams = useMemo(() => qs({ from: dateRange.from, to: dateRange.to }), [dateRange])
@@ -129,14 +150,21 @@ export default function ClientDashboard() {
     refetchInterval: 30000,
   })
 
+  const { data: reasonEnded } = useQuery({
+    queryKey: ['client-reason-ended', datePreset],
+    queryFn: () => fetch(`/api/client/analytics/reason-ended${dateParams}`).then((r) => r.json()),
+    refetchInterval: 30000,
+  })
+
   const volume = volumeRaw?.data ?? []
   const heatmap = heatmapRaw?.data ?? []
+  const agents = Array.isArray(agentComparison) ? agentComparison : []
 
   // --- CSV export ---
   function exportAgentCSV() {
-    if (!agentComparison?.length) return
+    if (agents.length === 0) return
     const header = 'Agent,Calls,Successful,Success Rate,Avg Duration'
-    const rows = agentComparison.map((a: any) =>
+    const rows = agents.map((a: any) =>
       [a.name, a.totalCalls, a.successfulCalls, `${a.successRate}%`, `${a.avgDuration}s`].join(',')
     )
     const csv = [header, ...rows].join('\n')
@@ -170,23 +198,31 @@ export default function ClientDashboard() {
       </div>
 
       {/* ---- 2. KPI Row ---- */}
-      {statsLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 rounded-lg animate-pulse bg-muted" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Calls" value={stats?.totalCalls ?? 0} />
-          <StatCard label="Successful" value={stats?.successfulCalls ?? 0} />
-          <StatCard label="Success Rate" value={`${stats?.successRate ?? 0}%`} />
-          <StatCard label="Avg Duration" value={formatDuration(stats?.avgDuration)} />
-        </div>
-      )}
+      {(() => {
+        const kpis = [
+          { key: 'totalCalls' as const, label: 'Total Calls', value: stats?.totalCalls ?? 0 },
+          { key: 'successfulCalls' as const, label: 'Successful', value: stats?.successfulCalls ?? 0 },
+          { key: 'successRate' as const, label: 'Success Rate', value: `${stats?.successRate ?? 0}%` },
+          { key: 'avgDuration' as const, label: 'Avg Duration', value: formatDuration(stats?.avgDuration) },
+          { key: 'totalCallMinutes' as const, label: 'Total Minutes', value: stats?.totalCallMinutes ?? 0 },
+          { key: 'contactsReached' as const, label: 'Contacts Reached', value: stats?.contactsReached ?? 0 },
+        ].filter((k) => f?.[k.key] !== false)
+
+        if (kpis.length === 0) return null
+        if (statsLoading) return (
+          <div className={`grid grid-cols-2 lg:grid-cols-${Math.min(kpis.length, 4)} gap-4`}>
+            {kpis.map((_, i) => <div key={i} className="h-28 rounded-lg animate-pulse bg-muted" />)}
+          </div>
+        )
+        return (
+          <div className={`grid grid-cols-2 lg:grid-cols-${Math.min(kpis.length, 4)} gap-4`}>
+            {kpis.map((k) => <StatCard key={k.key} label={k.label} value={k.value} />)}
+          </div>
+        )
+      })()}
 
       {/* ---- 3. Lead Pipeline Row ---- */}
-      {leadStats && (
+      {leadStats && f?.leadPipeline !== false && (
         <div>
           <h3 className="text-sm font-semibold text-foreground mb-3">Lead Pipeline</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -215,29 +251,40 @@ export default function ClientDashboard() {
       )}
 
       {/* ---- 4. Charts Row 1 ---- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {outcomes ? <OutcomeChart data={outcomes} /> : <ChartSkeleton />}
-        {volume.length > 0 ? <VolumeBarChart data={volume} /> : <ChartSkeleton />}
-      </div>
+      {(f?.outcomeChart !== false || f?.volumeChart !== false) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {f?.outcomeChart !== false && (outcomes ? <OutcomeChart data={outcomes} /> : <ChartSkeleton />)}
+          {f?.volumeChart !== false && (volume.length > 0 ? <VolumeBarChart data={volume} /> : <ChartSkeleton />)}
+        </div>
+      )}
 
       {/* ---- 5. Charts Row 2 ---- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {volume.length > 0 ? <SuccessRateTrend data={volume} /> : <ChartSkeleton />}
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Call Heatmap</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {heatmap.length > 0 ? <HeatmapChart data={heatmap} /> : <ChartSkeleton />}
-          </CardContent>
-        </Card>
-      </div>
+      {(f?.successRateTrend !== false || f?.callHeatmap !== false) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {f?.successRateTrend !== false && (volume.length > 0 ? <SuccessRateTrend data={volume} /> : <ChartSkeleton />)}
+          {f?.callHeatmap !== false && (
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Call Heatmap</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {heatmap.length > 0 ? <HeatmapChart data={heatmap} /> : <ChartSkeleton />}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
-      {/* ---- 6. Agent Comparison Table ---- */}
-      <Card className="shadow-none">
+      {/* ---- 6. Reason Call Ended ---- */}
+      {f?.reasonCallEnded !== false && Array.isArray(reasonEnded) && reasonEnded.length > 0 && (
+        <ReasonEndedChart data={reasonEnded} />
+      )}
+
+      {/* ---- 7. Agent Comparison Table ---- */}
+      {f?.agentComparison !== false && <Card className="shadow-none">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="text-base">Agent Comparison</CardTitle>
-          <Button size="sm" variant="outline" onClick={exportAgentCSV} disabled={!agentComparison?.length}>
+          <Button size="sm" variant="outline" onClick={exportAgentCSV} disabled={agents.length === 0}>
             <Download className="w-3.5 h-3.5 mr-1.5" />
             Export CSV
           </Button>
@@ -255,14 +302,14 @@ export default function ClientDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {(agentComparison ?? []).length === 0 ? (
+                {agents.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-muted-foreground">
                       No agent data available
                     </td>
                   </tr>
                 ) : (
-                  (agentComparison ?? []).map((agent: any) => (
+                  agents.map((agent: any) => (
                     <tr key={agent.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
                       <td className="py-3 font-medium">{agent.name}</td>
                       <td className="py-3 text-right tabular-nums">{agent.totalCalls}</td>
@@ -286,7 +333,21 @@ export default function ClientDashboard() {
             </table>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
+
+      {/* ---- Preview Banner ---- */}
+      {isPreview && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
+          <span>Preview Mode — Viewing client dashboard</span>
+          <button
+            onClick={() => window.close()}
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors text-xs"
+          >
+            <X className="w-3 h-3" />
+            Close
+          </button>
+        </div>
+      )}
     </div>
   )
 }

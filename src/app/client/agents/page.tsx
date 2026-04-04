@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Phone, Megaphone, Globe } from 'lucide-react'
+import { Bot, Phone, Megaphone, Globe, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -43,7 +44,8 @@ export default function ClientAgentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {agentList.map((agent: any) => (
-            <Card key={agent.id} className="shadow-none hover:border-primary/20 transition-colors">
+            <Link key={agent.id} href={`/client/agents/${agent.id}`}>
+            <Card className="shadow-none hover:border-primary/20 transition-colors cursor-pointer group">
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -84,6 +86,7 @@ export default function ClientAgentsPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}

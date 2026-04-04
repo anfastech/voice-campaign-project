@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     successfulCalls: successful,
     avgDuration: Math.round(stats._avg.duration ?? 0),
     totalDuration: stats._sum.duration ?? 0,
+    totalCallMinutes: Math.round((stats._sum.duration ?? 0) / 60),
     successRate,
     contactsReached: contactsReached.length,
   })

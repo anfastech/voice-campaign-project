@@ -24,6 +24,15 @@ enum KBDocType {
   URL
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
 model User {
   id                     String                  @id @default(cuid())
   name                   String?
@@ -43,6 +52,8 @@ model User {
   campaignTemplates      CampaignTemplate[]
   workflows              Workflow[]
   contactGroups          ContactGroup[]
+  leads                  Lead[]
+  customMenuItems        CustomMenuItem[]
 }
 
 model Agent {
@@ -80,6 +91,7 @@ model Agent {
   knowledgeBaseDocuments KnowledgeBaseDocument[]
   contactAssignments     ContactAgentAssignment[]
   clientAgents           ClientAgent[]
+  leads                  Lead[]
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
@@ -102,6 +114,7 @@ model Contact {
   campaignContacts CampaignContact[]
   groupMemberships ContactGroupMember[]
   agentAssignments ContactAgentAssignment[]
+  leads            Lead[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -201,6 +214,7 @@ model Call {
   vapiCallId         String?
   errorMessage       String?    @db.Text
   metadata           Json?
+  lead               Lead?
   startedAt          DateTime   @default(now())
   answeredAt         DateTime?
   endedAt            DateTime?
@@ -343,6 +357,7 @@ model Client {
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   agents        ClientAgent[]
+  integration   ClientIntegration?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -373,4 +388,57 @@ model BrandingSettings {
   primaryColor  String   @default("#171717")
   accentColor   String   @default("#3b82f6")
   updatedAt     DateTime @updatedAt
+}
+
+model ClientIntegration {
+  id            String   @id @default(cuid())
+  clientId      String   @unique
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  accountSid    String?  // Phone provider Account SID
+  authToken     String?  // Phone provider Auth Token
+  phoneNumber   String?  // Dedicated phone number
+  webhookUrl    String?  // Webhook URL for call events
+  isConnected   Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  contactId   String
+  contact     Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  agentId     String?
+  agent       Agent?     @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  callId      String?    @unique
+  call        Call?      @relation(fields: [callId], references: [id], onDelete: SetNull)
+  status      LeadStatus @default(NEW)
+  score       Int?       // 0-100
+  value       Float?     // Deal value
+  notes       String?    @db.Text
+  tags        String[]
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  convertedAt DateTime   @default(now())
+  closedAt    DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([contactId])
+  @@index([agentId])
+}
+
+model CustomMenuItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  url       String
+  icon      String   @default("Link") // Lucide icon name
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

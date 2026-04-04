@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, CheckCircle, Search, Bot, Users, Settings2, FileText } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle, Search, Bot, Users, Settings2, FileText, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ContactGroup {
@@ -26,6 +26,7 @@ export default function NewCampaignPage() {
     maxRetries: 3,
     retryDelayMinutes: 60,
     callsPerMinute: 5,
+    scheduledAt: '',
   })
 
   const { data: agentsRaw = [] } = useQuery({
@@ -441,6 +442,52 @@ export default function NewCampaignPage() {
         >
           <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Campaign Settings</p>
 
+          {/* Schedule */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+              Schedule
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, scheduledAt: '' })}
+                className="px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+                style={{
+                  background: !formData.scheduledAt ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
+                  border: !formData.scheduledAt ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
+                  color: !formData.scheduledAt ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
+                }}
+              >
+                Start as Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, scheduledAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16) })}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+                style={{
+                  background: formData.scheduledAt ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
+                  border: formData.scheduledAt ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
+                  color: formData.scheduledAt ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
+                }}
+              >
+                <Calendar className="w-3 h-3" /> Schedule
+              </button>
+            </div>
+            {formData.scheduledAt && (
+              <input
+                type="datetime-local"
+                value={formData.scheduledAt}
+                onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                style={{
+                  background: 'var(--input)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            )}
+          </div>
+
           <div className="grid grid-cols-3 gap-4">
             {[
               { id: 'retries', label: 'Max Retries', key: 'maxRetries', min: 0, max: 10 },
@@ -485,6 +532,7 @@ export default function NewCampaignPage() {
               { label: 'Contacts', value: `${formData.contactIds.length} selected` },
               { label: 'Max Retries', value: formData.maxRetries },
               { label: 'Calls / min', value: formData.callsPerMinute },
+              { label: 'Schedule', value: formData.scheduledAt ? new Date(formData.scheduledAt).toLocaleString() : 'Draft (manual start)' },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
@@ -511,7 +559,13 @@ export default function NewCampaignPage() {
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
             <button
-              onClick={() => createCampaign.mutate(formData)}
+              onClick={() => {
+                const data = { ...formData }
+                if (data.scheduledAt) {
+                  data.scheduledAt = new Date(data.scheduledAt).toISOString()
+                }
+                createCampaign.mutate(data)
+              }}
               disabled={createCampaign.isPending}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               style={{ background: gradientPrimary, boxShadow: shadowPrimary }}
@@ -522,7 +576,7 @@ export default function NewCampaignPage() {
                   Creating...
                 </>
               ) : (
-                'Create Campaign'
+                formData.scheduledAt ? 'Schedule Campaign' : 'Create Campaign'
               )}
             </button>
           </div>

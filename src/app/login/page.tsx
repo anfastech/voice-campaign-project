@@ -9,9 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
-export default function LoginPage() {
+export default function ClientLoginPage() {
   const router = useRouter()
-  const [role, setRole] = useState<'admin' | 'client'>('admin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -22,9 +21,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const providerId = role === 'admin' ? 'admin-login' : 'client-login'
-
-    const result = await signIn(providerId, {
+    const result = await signIn('client-login', {
       email,
       password,
       redirect: false,
@@ -36,7 +33,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push(role === 'admin' ? '/analytics' : '/client/dashboard')
+    router.push('/client/dashboard')
     router.refresh()
   }
 
@@ -47,36 +44,17 @@ export default function LoginPage() {
           <Zap className="w-5 h-5 text-primary-foreground" fill="currentColor" />
         </div>
         <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>Access your voice campaign platform</CardDescription>
+        <CardDescription>Access your dashboard</CardDescription>
       </CardHeader>
 
       <CardContent>
-        <div className="flex gap-2 mb-6">
-          <Button
-            type="button"
-            variant={role === 'admin' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => setRole('admin')}
-          >
-            Admin
-          </Button>
-          <Button
-            type="button"
-            variant={role === 'client' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => setRole('client')}
-          >
-            Client
-          </Button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder={role === 'admin' ? 'admin@voicecampaign.ai' : 'client@example.com'}
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

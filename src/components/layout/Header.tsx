@@ -16,6 +16,9 @@ const pageTitles: Record<string, string> = {
   '/conversations': 'Conversations',
   '/analytics': 'Analytics',
   '/knowledge-base': 'Knowledge Base',
+  '/leads': 'Leads',
+  '/menu': 'Custom Menu',
+  '/integrations': 'Integrations',
   '/settings': 'Settings',
   '/account': 'Account',
 }
@@ -32,8 +35,11 @@ export function Header() {
       .sort((a, b) => b[0].length - a[0].length)
       .find(([path]) => pathname.startsWith(path))?.[1] ?? 'Voice Campaign'
 
-  const now = new Date()
-  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+  const [dateStr, setDateStr] = useState('')
+
+  useEffect(() => {
+    setDateStr(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }))
+  }, [])
 
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b border-border bg-background sticky top-0 z-40">
@@ -42,9 +48,11 @@ export function Header() {
 
       {/* Right: date + actions */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground hidden md:block">
-          Updated {dateStr}
-        </span>
+        {dateStr && (
+          <span className="text-xs text-muted-foreground hidden md:block">
+            Updated {dateStr}
+          </span>
+        )}
 
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.location.reload()}>
           <RefreshCw className="h-3.5 w-3.5" />
@@ -61,7 +69,10 @@ export function Header() {
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => signOut({ callbackUrl: '/login' })}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+          const isClient = pathname.startsWith('/client')
+          signOut({ callbackUrl: isClient ? '/login' : '/admin' })
+        }}>
           <LogOut className="h-3.5 w-3.5" />
         </Button>
       </div>

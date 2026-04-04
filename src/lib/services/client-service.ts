@@ -6,6 +6,7 @@ export async function listClients(adminUserId: string) {
     where: { userId: adminUserId },
     include: {
       agents: { include: { agent: { select: { id: true, name: true } } } },
+      integration: { select: { isConnected: true, phoneNumber: true } },
       _count: { select: { agents: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -17,6 +18,7 @@ export async function getClient(adminUserId: string, clientId: string) {
     where: { id: clientId, userId: adminUserId },
     include: {
       agents: { include: { agent: { select: { id: true, name: true, provider: true, isActive: true } } } },
+      integration: true,
     },
   })
 }

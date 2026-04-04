@@ -2,6 +2,93 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-05] — Cost/Provider Data Hidden from Clients & Agent Workflow
+
+### Changed
+- **Removed all cost data from client UI** — Total Cost, Cost/Success, Cost Breakdown chart, per-agent cost column, per-campaign cost, and CSV export cost column all removed from client dashboard and campaigns page
+- **Stripped cost from client APIs** — `/api/client/analytics`, `/api/client/analytics/agent-comparison`, `/api/client/campaigns`, `/api/client/campaigns/[id]` no longer return cost fields
+- **Removed provider info from client APIs** — `/api/client/agents` no longer exposes `voice` (provider-specific); `/api/client/campaigns/[id]` no longer exposes agent voice
+- **Enhanced client agents page** — Richer agent cards showing call count, campaign count, language; empty state with clear messaging; dedicated agent relationship
+
+### Notes
+- Cost, pricing, and provider details are now **agency-only** (admin dashboard)
+- Client dashboard KPI row reduced from 6 to 4 cards (calls, successful, success rate, duration)
+- Campaign summary stats replaced "Total Cost" with "Scheduled" count
+- Lead pipeline replaced "Pipeline Value" with "Conversion Rate %"
+
+---
+
+## [2026-04-04] — Google Sheets Import & Campaign Scheduling
+
+### Added
+- **Google Sheets import** — Both admin and client can import contacts from a public Google Sheet URL
+  - New API endpoint `POST /api/contacts/import-gsheet` extracts sheet ID, fetches CSV export, imports contacts
+  - Admin CsvImportDialog updated with CSV/Google Sheets tab toggle
+  - Client contacts page gets "Google Sheets" button with import dialog
+- **Campaign scheduling for admin** — Step 4 of campaign creation wizard now has "Start as Draft" / "Schedule" toggle with datetime picker
+  - Summary shows scheduled date or "Draft (manual start)"
+  - Button text changes to "Schedule Campaign" when date is set
+
+---
+
+## [2026-04-04] — Client Campaign Management & Rich Analytics Dashboard
+
+### Added
+- **Rich analytics dashboard** — Rebuilt client dashboard (`/client/dashboard`) with full analytics:
+  - 6 KPI stat cards (Total Calls, Successful, Success Rate, Avg Duration, Total Cost, Cost/Success)
+  - Lead pipeline row with color-coded status cards and pipeline value
+  - Call outcomes pie chart, call volume line chart, success rate trend
+  - Call volume heatmap (hour x day-of-week)
+  - Cost breakdown bar chart
+  - Agent comparison table with CSV export
+  - Date range preset selector (Today, 7d, 30d, 90d, All Time)
+- **Campaign management for clients** — Clients can now create, start, pause, and schedule campaigns:
+  - Create Campaign dialog with agent selection, multi-select contacts with search, schedule toggle, and advanced settings (max retries, retry delay, calls/min)
+  - Contextual Start/Resume/Pause action buttons per campaign status
+  - Campaign stats on each card (contacts, completed/successful/failed calls, cost)
+  - Summary stats row (Total Campaigns, Running, Completed, Total Cost)
+- **Client analytics APIs** — 5 new endpoints scoped to client's assigned agents:
+  - `/api/client/analytics/call-outcomes` — Call status breakdown with date range filtering
+  - `/api/client/analytics/call-volume` — Daily volume + heatmap mode
+  - `/api/client/analytics/cost-breakdown` — Daily cost trend
+  - `/api/client/analytics/agent-comparison` — Per-agent metrics
+  - `/api/client/analytics/lead-stats` — Lead pipeline statistics
+- **Client campaign APIs** — POST campaign creation, start, pause endpoints:
+  - `POST /api/client/campaigns` — Create with agent/contact validation
+  - `POST /api/client/campaigns/[id]/start` — Start campaign
+  - `POST /api/client/campaigns/[id]/pause` — Pause campaign
+  - `GET /api/client/campaigns/[id]` — Campaign details
+
+### Changed
+- **Analytics overview API** (`/api/client/analytics`) — Added successRate, costPerSuccess, contactsReached, totalDuration fields and date range support
+
+---
+
+## [2026-04-03] — Leads Pipeline, Custom Menu & Client Polish
+
+### Added
+- **Leads system** — `Lead` model with pipeline stages (NEW → CONTACTED → QUALIFIED → PROPOSAL → WON/LOST), score, value, tags, notes. Contacts convert to leads.
+- **Admin Leads page** (`/leads`) — Status filter tabs, stats row, color-coded badges, expandable cards with inline editing.
+- **Client Leads page** (`/client/leads`) — Read-only lead view, contact-to-lead conversion via "Convert to Lead" button.
+- **Custom Menu** (`/menu`) — Admin adds custom nav items (label, URL, icon, position) that appear in client sidebar. Supports external links.
+- **Client sidebar dynamic menu** — Fetches custom menu items from API, renders with Lucide icons, external link indicator.
+- **Client Contacts** (`/client/contacts`) — Functional page: search, add contact dialog, convert-to-lead action, call count badges.
+- **Client Campaigns** (`/client/campaigns`) — Functional page: campaign cards with status badges, progress bars, agent info.
+- **Separated login flows** — `/login` = client-only (no admin mention), `/admin` = admin-only (hidden URL). Clients never see admin panel exists.
+- **APIs** — `/api/leads`, `/api/leads/[id]`, `/api/client/leads`, `/api/client/contacts`, `/api/client/campaigns`, `/api/menu`, `/api/client/menu`.
+
+---
+
+## [2026-04-03] — Per-Client Phone Integration & Dashboard Access
+
+### Added
+- **ClientIntegration model** — Per-client Twilio credentials (Account SID, Auth Token, dedicated phone number, webhook URL) stored in DB.
+- **Client detail page** — Enhanced with Dashboard Access section (copyable login URL + client email) and Phone Integration section (credential inputs, test connection, save).
+- **Integration API** — `GET/PATCH /api/clients/[id]/integration` for CRUD, `POST /api/clients/[id]/integration/test` for Twilio credential validation.
+- **Client list** — Shows phone connection status badge with dedicated number when connected.
+
+---
+
 ## [2026-04-03] — Agency Platform: Multi-Tenant Transformation
 
 ### Added

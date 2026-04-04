@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Bot, Zap, BookOpen, BarChart3, Settings, MessageSquare,
-  Users, UsersRound, Palette, Megaphone,
+  Users, UsersRound, Palette, Megaphone, Menu, Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
@@ -14,6 +14,7 @@ const navItems = [
   { href: '/conversations', label: 'Conversations', icon: MessageSquare },
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: '/leads', label: 'Leads', icon: Target },
   { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
   { href: '/agents', label: 'Your Agents', icon: Bot },
 ]
@@ -21,6 +22,7 @@ const navItems = [
 const adminItems = [
   { href: '/clients', label: 'Clients', icon: UsersRound },
   { href: '/branding', label: 'Branding', icon: Palette },
+  { href: '/menu', label: 'Custom Menu', icon: Menu },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

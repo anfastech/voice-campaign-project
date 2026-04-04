@@ -12,12 +12,17 @@ export async function GET() {
     include: {
       agent: {
         select: {
-          id: true, name: true, description: true, voice: true,
+          id: true, name: true, description: true,
           language: true, isActive: true, createdAt: true,
+          _count: { select: { calls: true, campaigns: true } },
         },
       },
     },
   })
 
-  return NextResponse.json(assignments.map((a) => a.agent))
+  return NextResponse.json(assignments.map((a) => ({
+    ...a.agent,
+    totalCalls: a.agent._count.calls,
+    totalCampaigns: a.agent._count.campaigns,
+  })))
 }

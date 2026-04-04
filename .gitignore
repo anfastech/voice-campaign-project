@@ -47,9 +47,32 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# generated
 /src/generated/prisma
-.claude/mcp.json
+
+# prisma migrations
 prisma/migrations/migration_lock.toml
 prisma/migrations/20260320183807_voicecampaign_01/migration.sql
+
+# claude / mcp
+.claude/
+!.claude/.gitkeep
+
+# supabase
 supabase/config.toml
-docs/superpowers/plans/2026-04-02-shadcn-ui-overhaul.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+
+# docs / plans (internal)
+docs/superpowers/

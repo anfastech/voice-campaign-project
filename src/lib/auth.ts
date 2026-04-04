@@ -82,7 +82,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: '/login',
+    signIn: '/login', // Client login — admin uses /admin
   },
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',

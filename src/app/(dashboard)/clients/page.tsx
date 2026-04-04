@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -82,6 +82,12 @@ export default function ClientsPage() {
                 </Link>
 
                 <div className="flex items-center gap-3 shrink-0">
+                  {client.integration?.isConnected && (
+                    <Badge variant="outline" className="text-xs gap-1 text-emerald-600 border-emerald-200">
+                      <Phone className="w-3 h-3" />
+                      {client.integration.phoneNumber || 'Connected'}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs">
                     {client._count?.agents ?? 0} agents
                   </Badge>

@@ -8,6 +8,7 @@ export async function middleware(req: NextRequest) {
   // Public routes — no auth needed
   if (
     pathname.startsWith('/login') ||
+    pathname.startsWith('/admin') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/_next') ||

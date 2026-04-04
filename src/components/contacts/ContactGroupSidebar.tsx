@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, Plus, Pencil, Trash2, FolderOpen } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { GroupManageDialog } from './GroupManageDialog'
 
 interface Group {
@@ -42,19 +46,7 @@ export function ContactGroupSidebar({ selectedGroupId, onSelect }: Props) {
 
   return (
     <>
-      <aside
-        style={{
-          width: '220px',
-          minWidth: '220px',
-          borderRight: '1px solid var(--border)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-          padding: '0.5rem',
-          background: 'var(--card)',
-          borderRadius: '1rem 0 0 1rem',
-        }}
-      >
+      <aside className="w-[220px] min-w-[220px] border-r bg-card rounded-l-xl flex flex-col gap-0.5 p-2">
         {/* Static items */}
         {navItems.map((item) => {
           const Icon = item.icon
@@ -63,161 +55,71 @@ export function ContactGroupSidebar({ selectedGroupId, onSelect }: Props) {
             <button
               key={String(item.id)}
               onClick={() => onSelect(item.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '0.625rem',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-                border: 'none',
-                textAlign: 'left',
-                width: '100%',
-                transition: 'background 0.12s',
-                background: active
-                  ? 'linear-gradient(135deg, oklch(0.49 0.263 281 / 15%), oklch(0.65 0.22 310 / 15%))'
-                  : 'transparent',
-                color: active ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
-              }}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer border-none text-left w-full transition-colors',
+                active
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-transparent text-muted-foreground hover:bg-accent/50'
+              )}
             >
-              <Icon style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {item.label}
-              </span>
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1 truncate">{item.label}</span>
             </button>
           )
         })}
 
         {/* Divider + Groups header */}
-        <div
-          style={{
-            margin: '0.375rem 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0 0.75rem',
-          }}
-        >
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span
-            style={{
-              fontSize: '0.625rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--muted-foreground)',
-              whiteSpace: 'nowrap',
-            }}
-          >
+        <div className="flex items-center gap-2 px-3 my-1.5">
+          <Separator className="flex-1" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
             Groups
           </span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+          <Separator className="flex-1" />
         </div>
 
         {/* Group list */}
-        <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        <div className="flex-1 overflow-auto flex flex-col gap-px">
           {groups.map((group) => {
             const active = selectedGroupId === group.id
             return (
               <div
                 key={group.id}
-                className="group"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  borderRadius: '0.625rem',
-                  background: active
-                    ? 'linear-gradient(135deg, oklch(0.49 0.263 281 / 15%), oklch(0.65 0.22 310 / 15%))'
-                    : 'transparent',
-                  transition: 'background 0.12s',
-                }}
+                className={cn(
+                  'group flex items-center gap-1 rounded-lg transition-colors',
+                  active ? 'bg-accent' : 'bg-transparent'
+                )}
               >
                 <button
                   onClick={() => onSelect(group.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    flex: 1,
-                    padding: '0.4375rem 0.75rem',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    minWidth: 0,
-                  }}
+                  className="flex items-center gap-2 flex-1 py-1.5 px-3 border-none bg-transparent cursor-pointer text-left min-w-0"
                 >
-                  <FolderOpen
-                    style={{
-                      width: '0.875rem',
-                      height: '0.875rem',
-                      flexShrink: 0,
-                      color: active ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: '0.8125rem',
-                      fontWeight: 500,
-                      flex: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      color: active ? 'oklch(0.49 0.263 281)' : 'var(--foreground)',
-                    }}
-                  >
+                  <FolderOpen className={cn('w-3.5 h-3.5 shrink-0', active ? 'text-accent-foreground' : 'text-muted-foreground')} />
+                  <span className={cn('text-sm font-medium flex-1 truncate', active ? 'text-accent-foreground' : 'text-foreground')}>
                     {group.name}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '0.625rem',
-                      fontWeight: 600,
-                      color: 'var(--muted-foreground)',
-                      background: 'var(--muted)',
-                      padding: '0.125rem 0.375rem',
-                      borderRadius: '9999px',
-                    }}
-                  >
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
                     {group._count.members}
-                  </span>
+                  </Badge>
                 </button>
-                <div
-                  className="opacity-0 group-hover:opacity-100"
-                  style={{ display: 'flex', gap: '1px', paddingRight: '0.25rem', transition: 'opacity 0.15s' }}
-                >
-                  <button
+                <div className="opacity-0 group-hover:opacity-100 flex gap-px pr-1 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
                     onClick={() => { setEditingGroup(group); setDialogOpen(true) }}
-                    style={{
-                      padding: '0.25rem',
-                      borderRadius: '0.375rem',
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      color: 'var(--muted-foreground)',
-                    }}
                     title="Rename"
                   >
-                    <Pencil style={{ width: '0.75rem', height: '0.75rem' }} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Delete group "${group.name}"?`)) deleteMutation.mutate(group.id)
-                    }}
-                    style={{
-                      padding: '0.25rem',
-                      borderRadius: '0.375rem',
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      color: 'oklch(0.59 0.245 15)',
-                    }}
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    onClick={() => { if (confirm(`Delete group "${group.name}"?`)) deleteMutation.mutate(group.id) }}
                     title="Delete"
                   >
-                    <Trash2 style={{ width: '0.75rem', height: '0.75rem' }} />
-                  </button>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
             )
@@ -225,28 +127,15 @@ export function ContactGroupSidebar({ selectedGroupId, onSelect }: Props) {
         </div>
 
         {/* Create group button */}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full mt-1 border-dashed text-muted-foreground"
           onClick={() => { setEditingGroup(null); setDialogOpen(true) }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 0.75rem',
-            borderRadius: '0.625rem',
-            fontSize: '0.8125rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            border: '1px dashed var(--border)',
-            background: 'transparent',
-            color: 'var(--muted-foreground)',
-            marginTop: '0.25rem',
-            width: '100%',
-            transition: 'all 0.12s',
-          }}
         >
-          <Plus style={{ width: '0.875rem', height: '0.875rem' }} />
+          <Plus className="w-3.5 h-3.5 mr-1.5" />
           New Group
-        </button>
+        </Button>
       </aside>
 
       <GroupManageDialog

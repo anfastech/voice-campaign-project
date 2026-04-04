@@ -395,6 +395,8 @@ model BrandingSettings {
   faviconUrl    String?
   primaryColor  String   @default("#171717")
   accentColor   String   @default("#3b82f6")
+  webhookUrl    String?
+  webhookSecret String?
   updatedAt     DateTime @updatedAt
 }
 

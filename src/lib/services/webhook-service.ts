@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { startNextBatch } from './campaign-service'
 import { generateCallSummary } from './summary-service'
+import { executeWorkflows, callStatusToEvent } from './workflow-engine'
 
 // ---------------------------------------------------------------------------
 // Shared helper: apply a call outcome to Call + CampaignContact + Campaign stats
@@ -168,8 +169,11 @@ export async function processCallEvent(event: {
         )
       }
 
+      // Fire workflow engine
+      await fireCallWorkflows(call, callStatus, { duration, cost, transcript })
+
       if (call.campaignId) {
-        await checkCampaignCompletion(call.campaignId)
+        await checkAndFireCampaignWorkflow(call.campaignId)
       }
       break
     }
@@ -191,14 +195,84 @@ export async function processCallEvent(event: {
         errorMessage,
       })
 
+      // Fire workflow engine
+      await fireCallWorkflows(call, callStatus, {})
+
       if (call.campaignId) {
-        await checkCampaignCompletion(call.campaignId)
+        await checkAndFireCampaignWorkflow(call.campaignId)
       }
       break
     }
   }
 
   return { received: true }
+}
+
+// ---------------------------------------------------------------------------
+// Workflow integration helpers
+// ---------------------------------------------------------------------------
+
+async function fireCallWorkflows(
+  call: { id: string; agentId: string | null; contactId: string; campaignId: string | null },
+  status: string,
+  extra: { duration?: number | null; cost?: number | null; transcript?: string | null },
+) {
+  const event = callStatusToEvent(status)
+  if (!event) return
+
+  const agent = call.agentId
+    ? await prisma.agent.findUnique({ where: { id: call.agentId }, select: { name: true, userId: true } })
+    : null
+  if (!agent?.userId) return
+
+  const contact = await prisma.contact.findUnique({
+    where: { id: call.contactId },
+    select: { name: true, phoneNumber: true },
+  })
+  const campaign = call.campaignId
+    ? await prisma.campaign.findUnique({ where: { id: call.campaignId }, select: { name: true } })
+    : null
+
+  executeWorkflows(agent.userId, event, {
+    callId: call.id,
+    status,
+    duration: extra.duration ?? undefined,
+    cost: extra.cost ?? undefined,
+    transcript: extra.transcript ?? undefined,
+    contactId: call.contactId,
+    contactName: contact?.name ?? undefined,
+    contactPhone: contact?.phoneNumber ?? undefined,
+    agentId: call.agentId ?? undefined,
+    agentName: agent.name ?? undefined,
+    campaignId: call.campaignId ?? undefined,
+    campaignName: campaign?.name ?? undefined,
+  }).catch((err) => console.error('Workflow execution failed:', err))
+}
+
+async function checkAndFireCampaignWorkflow(campaignId: string) {
+  const result = await checkCampaignCompletion(campaignId)
+
+  if (result === 'completed') {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: {
+        name: true, userId: true, completedCalls: true, successfulCalls: true,
+        agent: { select: { id: true, name: true } },
+        _count: { select: { contacts: true } },
+      },
+    })
+    if (campaign) {
+      executeWorkflows(campaign.userId, 'campaign.completed', {
+        campaignId,
+        campaignName: campaign.name,
+        agentId: campaign.agent?.id,
+        agentName: campaign.agent?.name,
+        totalContacts: campaign._count.contacts,
+        completedCalls: campaign.completedCalls,
+        successfulCalls: campaign.successfulCalls,
+      }).catch((err) => console.error('Campaign workflow failed:', err))
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

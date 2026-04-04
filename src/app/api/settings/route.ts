@@ -1,47 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth-utils'
 
-// Settings are stored as environment variables and provider health checks.
-// This API provides a view of the current configuration state.
 export async function GET() {
   try {
-    const [agentCount, callCount, campaignCount, contactCount, costAgg, durationAgg] = await Promise.all([
-      prisma.agent.count({ where: { isActive: true } }),
-      prisma.call.count(),
-      prisma.campaign.count(),
-      prisma.contact.count(),
-      prisma.call.aggregate({ _sum: { cost: true } }),
-      prisma.call.aggregate({ where: { status: 'COMPLETED' }, _sum: { duration: true } }),
-    ])
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
 
-    const totalMinutes = Math.round((durationAgg._sum.duration ?? 0) / 60)
-    const totalCost = costAgg._sum.cost ?? 0
+    const branding = await prisma.brandingSettings.findUnique({
+      where: { userId },
+      select: { webhookUrl: true, webhookSecret: true },
+    })
 
-    // Generic integration status (provider-agnostic)
     const integrations = {
       voiceEngine: { connected: Boolean(process.env.ELEVENLABS_API_KEY) },
       aiModel: { connected: Boolean(process.env.ANTHROPIC_API_KEY) },
       telephony: { connected: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) },
     }
 
-    // Webhook config (from env)
-    const webhookUrl = process.env.WEBHOOK_URL || null
-    const webhookSecret = process.env.WEBHOOK_SECRET ? '••••••••' : null
-
     return NextResponse.json({
       integrations,
-      webhook: { url: webhookUrl, secret: webhookSecret },
-      usage: {
-        totalMinutes,
-        totalCost,
-        totalCalls: callCount,
-        totalAgents: agentCount,
-        totalCampaigns: campaignCount,
-        totalContacts: contactCount,
+      webhook: {
+        url: branding?.webhookUrl || null,
+        secret: branding?.webhookSecret ? '••••••••' : null,
+        hasSecret: Boolean(branding?.webhookSecret),
       },
     })
   } catch (error) {
     console.error('Settings error:', error)
     return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const user = await requireAuth()
+    if (user instanceof NextResponse) return user
+    const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
+    const body = await req.json()
+    const { webhookUrl, webhookSecret } = body
+
+    const data: Record<string, string | null> = {}
+    if (webhookUrl !== undefined) data.webhookUrl = webhookUrl || null
+    if (webhookSecret !== undefined) data.webhookSecret = webhookSecret || null
+
+    await prisma.brandingSettings.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Settings update error:', error)
+    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
   }
 }

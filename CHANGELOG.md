@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-05] — Admin Platform Restructure, Workflow Engine & Settings Cleanup
+
+### Changed
+- **Sidebar restructured** into 3 groups: **Overall** (Live Monitor, Analytics, Workflows), **Agents** (Your Agents, Knowledge Base), **Admin** (Clients, Contacts, Branding, Custom Menu, Settings)
+- **Conversations, Campaigns, Leads** moved into **Client detail page** as tabbed views — scoped to each client's assigned agents
+- **Settings page** cleaned up: removed fake notification toggles (useState-only), removed duplicate usage stats. Webhook URL/secret now editable and persisted to database.
+- **Workflows page** rewritten with proper shadcn/Tailwind (was inline `style={{}}`)
+- **Live Monitor page** rewritten with proper shadcn/Tailwind (was inline `style={{}}`)
+
+### Added
+- **Workflow execution engine** (`src/lib/services/workflow-engine.ts`) — workflows now actually fire on call.completed, call.failed, call.no_answer, campaign.completed events
+- Webhook action sends JSON payload with call/contact/agent/campaign data
+- Tag contact action adds tags to contacts on matching events
+- Add-to-campaign action enrolls contacts into other campaigns
+- Engine wired into ElevenLabs webhook handler and generic processCallEvent
+- **Client detail tabs** — Overview, Conversations, Campaigns, Leads per client
+- **Per-client API routes**: `/api/clients/[id]/conversations`, `/api/clients/[id]/campaigns`, `/api/clients/[id]/leads`
+- **webhookUrl/webhookSecret** fields on BrandingSettings schema (editable from Settings page)
+- **Settings PATCH endpoint** for saving webhook config to DB
+
+### Removed
+- Orphan redirect pages: `/dashboard`, `/calls`, `/account`
+- Top-level `/conversations`, `/campaigns`, `/leads` admin pages (now per-client)
+- Fake notification preferences (were never persisted)
+- Duplicate usage dashboard in Settings (already shown in Analytics)
+
+---
+
 ## [2026-04-05] — Topics, Knowledge Base, Analytics, Branding & Agent Settings
 
 ### Added

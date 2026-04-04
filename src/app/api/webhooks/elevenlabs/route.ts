@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { applyCallOutcome, checkCampaignCompletion } from '@/lib/services/webhook-service'
 import { generateCallSummary } from '@/lib/services/summary-service'
+import { executeWorkflows, callStatusToEvent } from '@/lib/services/workflow-engine'
 
 // ElevenLabs webhook signature format: "t=<timestamp>,v0=<hex>"
 function verifySignature(rawBody: string, signatureHeader: string, secret: string): boolean {
@@ -121,8 +122,56 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Fire workflow engine for call events
+    const workflowEvent = callStatusToEvent(finalStatus)
+    if (workflowEvent) {
+      const agent = call.agentId
+        ? await prisma.agent.findUnique({ where: { id: call.agentId }, select: { name: true, userId: true } })
+        : null
+      const contact = call.contactId
+        ? await prisma.contact.findUnique({ where: { id: call.contactId }, select: { name: true, phoneNumber: true } })
+        : null
+      const campaign = call.campaignId
+        ? await prisma.campaign.findUnique({ where: { id: call.campaignId }, select: { name: true } })
+        : null
+
+      const userId = agent?.userId || ''
+      if (userId) {
+        executeWorkflows(userId, workflowEvent, {
+          callId: call.id,
+          status: finalStatus,
+          duration: durationSeconds ?? undefined,
+          transcript: transcript ?? undefined,
+          contactId: call.contactId,
+          contactName: contact?.name ?? undefined,
+          contactPhone: contact?.phoneNumber ?? undefined,
+          agentId: call.agentId ?? undefined,
+          agentName: agent?.name ?? undefined,
+          campaignId: call.campaignId ?? undefined,
+          campaignName: campaign?.name ?? undefined,
+        }).catch((err) => console.error('Workflow execution failed:', err))
+      }
+    }
+
     if (call.campaignId) {
-      await checkCampaignCompletion(call.campaignId)
+      const result = await checkCampaignCompletion(call.campaignId)
+
+      // Fire workflow for campaign completion
+      if (result === 'completed') {
+        const campaign = await prisma.campaign.findUnique({
+          where: { id: call.campaignId },
+          select: { name: true, userId: true, _count: { select: { contacts: true, calls: true } }, completedCalls: true, successfulCalls: true },
+        })
+        if (campaign) {
+          executeWorkflows(campaign.userId, 'campaign.completed', {
+            campaignId: call.campaignId,
+            campaignName: campaign.name,
+            totalContacts: campaign._count.contacts,
+            completedCalls: campaign.completedCalls,
+            successfulCalls: campaign.successfulCalls,
+          }).catch((err) => console.error('Campaign workflow execution failed:', err))
+        }
+      }
     }
 
     return NextResponse.json({ received: true })

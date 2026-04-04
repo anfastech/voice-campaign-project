@@ -3,24 +3,25 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Bot, Zap, BookOpen, BarChart3, Settings, MessageSquare,
-  Users, UsersRound, Palette, Megaphone, Menu, Target,
+  Bot, Zap, BookOpen, BarChart3, Settings,
+  Users, UsersRound, Palette, Menu, Radio,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 
-const navItems = [
+const overallItems = [
+  { href: '/live', label: 'Live Monitor', icon: Radio },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/conversations', label: 'Conversations', icon: MessageSquare },
-  { href: '/contacts', label: 'Contacts', icon: Users },
-  { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-  { href: '/leads', label: 'Leads', icon: Target },
-  { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
+]
+
+const agentItems = [
   { href: '/agents', label: 'Your Agents', icon: Bot },
+  { href: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
 ]
 
 const adminItems = [
   { href: '/clients', label: 'Clients', icon: UsersRound },
+  { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/branding', label: 'Branding', icon: Palette },
   { href: '/menu', label: 'Custom Menu', icon: Menu },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -47,9 +48,28 @@ export function AdminSidebar() {
 
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">
-          Platform
+          Overall
         </p>
-        {navItems.map((item) => {
+        {overallItems.map((item) => {
+          const Icon = item.icon
+          const active = isActive(pathname, item.href)
+          return (
+            <Link key={item.href} href={item.href} prefetch className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              active ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            )}>
+              <Icon className="w-4 h-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          )
+        })}
+
+        <Separator className="my-3" />
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">
+          Agents
+        </p>
+        {agentItems.map((item) => {
           const Icon = item.icon
           const active = isActive(pathname, item.href)
           return (

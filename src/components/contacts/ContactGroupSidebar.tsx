@@ -58,8 +58,8 @@ export function ContactGroupSidebar({ selectedGroupId, onSelect }: Props) {
               className={cn(
                 'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer border-none text-left w-full transition-colors',
                 active
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-transparent text-muted-foreground hover:bg-accent/50'
+                  ? 'bg-secondary text-foreground'
+                  : 'bg-transparent text-muted-foreground hover:bg-muted'
               )}
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -86,15 +86,15 @@ export function ContactGroupSidebar({ selectedGroupId, onSelect }: Props) {
                 key={group.id}
                 className={cn(
                   'group flex items-center gap-1 rounded-lg transition-colors',
-                  active ? 'bg-accent' : 'bg-transparent'
+                  active ? 'bg-secondary' : 'bg-transparent'
                 )}
               >
                 <button
                   onClick={() => onSelect(group.id)}
                   className="flex items-center gap-2 flex-1 py-1.5 px-3 border-none bg-transparent cursor-pointer text-left min-w-0"
                 >
-                  <FolderOpen className={cn('w-3.5 h-3.5 shrink-0', active ? 'text-accent-foreground' : 'text-muted-foreground')} />
-                  <span className={cn('text-sm font-medium flex-1 truncate', active ? 'text-accent-foreground' : 'text-foreground')}>
+                  <FolderOpen className={cn('w-3.5 h-3.5 shrink-0', active ? 'text-foreground' : 'text-muted-foreground')} />
+                  <span className={cn('text-sm font-medium flex-1 truncate', active ? 'text-foreground' : 'text-foreground')}>
                     {group.name}
                   </span>
                   <Badge variant="secondary" className="text-[10px] shrink-0">

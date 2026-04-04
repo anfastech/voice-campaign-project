@@ -11,6 +11,17 @@ import {
   FileText, Type, Link as LinkIcon, BarChart2,
 } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table'
+
 type AgentTool = {
   id: string
   name: string
@@ -32,15 +43,24 @@ type KBDoc = {
   createdAt: string
 }
 
-const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  COMPLETED:   { label: 'Completed',   color: 'oklch(0.45 0.215 163)', bg: 'oklch(0.55 0.215 163 / 10%)' },
-  IN_PROGRESS: { label: 'In Progress', color: 'oklch(0.6 0.19 220)',   bg: 'oklch(0.6 0.19 220 / 10%)' },
-  INITIATED:   { label: 'Initiated',   color: 'oklch(0.6 0.19 220)',   bg: 'oklch(0.6 0.19 220 / 10%)' },
-  RINGING:     { label: 'Ringing',     color: 'oklch(0.72 0.18 68)',   bg: 'oklch(0.72 0.18 68 / 10%)' },
-  FAILED:      { label: 'Failed',      color: 'oklch(0.52 0.245 15)',  bg: 'oklch(0.59 0.245 15 / 10%)' },
-  NO_ANSWER:   { label: 'No Answer',   color: 'oklch(0.52 0.245 15)',  bg: 'oklch(0.59 0.245 15 / 10%)' },
-  BUSY:        { label: 'Busy',        color: 'oklch(0.64 0.24 35)',   bg: 'oklch(0.64 0.24 35 / 10%)' },
-  CANCELLED:   { label: 'Cancelled',   color: 'var(--muted-foreground)', bg: 'var(--muted)' },
+const CALL_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  COMPLETED:   { label: 'Completed',   className: 'bg-emerald-500/10 text-emerald-600' },
+  IN_PROGRESS: { label: 'In Progress', className: 'bg-blue-500/10 text-blue-600' },
+  INITIATED:   { label: 'Initiated',   className: 'bg-blue-500/10 text-blue-600' },
+  RINGING:     { label: 'Ringing',     className: 'bg-amber-500/10 text-amber-600' },
+  FAILED:      { label: 'Failed',      className: 'bg-red-500/10 text-red-600' },
+  NO_ANSWER:   { label: 'No Answer',   className: 'bg-red-500/10 text-red-600' },
+  BUSY:        { label: 'Busy',        className: 'bg-orange-500/10 text-orange-600' },
+  CANCELLED:   { label: 'Cancelled',   className: 'bg-muted text-muted-foreground' },
+}
+
+const CAMPAIGN_STATUS_CONFIG: Record<string, string> = {
+  RUNNING:    'bg-emerald-500/10 text-emerald-600',
+  COMPLETED:  'bg-emerald-500/10 text-emerald-600',
+  PAUSED:     'bg-amber-500/10 text-amber-600',
+  DRAFT:      'bg-muted text-muted-foreground',
+  SCHEDULED:  'bg-blue-500/10 text-blue-600',
+  CANCELLED:  'bg-muted text-muted-foreground',
 }
 
 const DOC_TYPE_ICONS = {
@@ -207,13 +227,13 @@ export default function AgentDetailPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto space-y-5">
-        <div className="h-10 w-32 rounded-xl relative overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <div className="h-10 w-32 rounded-xl relative overflow-hidden bg-card border">
           <div className="absolute inset-0 shimmer" />
         </div>
-        <div className="h-48 rounded-2xl relative overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <div className="h-48 rounded-2xl relative overflow-hidden bg-card border">
           <div className="absolute inset-0 shimmer" />
         </div>
-        <div className="h-64 rounded-2xl relative overflow-hidden" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <div className="h-64 rounded-2xl relative overflow-hidden bg-card border">
           <div className="absolute inset-0 shimmer" />
         </div>
       </div>
@@ -223,11 +243,11 @@ export default function AgentDetailPage() {
   if (!agent || agent.error) {
     return (
       <div className="max-w-3xl mx-auto text-center py-16">
-        <p style={{ color: 'var(--muted-foreground)' }}>Agent not found.</p>
+        <p className="text-muted-foreground">Agent not found.</p>
         <Link href="/agents">
-          <button className="mt-4 px-4 py-2 rounded-xl text-sm" style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+          <Button variant="outline" className="mt-4">
             Back to Agents
-          </button>
+          </Button>
         </Link>
       </div>
     )
@@ -279,17 +299,18 @@ export default function AgentDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--muted-foreground)' }}
+            className="rounded-xl"
           >
             <ArrowLeft className="w-4 h-4" />
-          </button>
+          </Button>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>{a.name}</h1>
+            <h1 className="text-xl font-bold text-foreground">{a.name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              <span className="text-xs text-muted-foreground">
                 Created {formatDate(a.createdAt)}
               </span>
             </div>
@@ -297,218 +318,189 @@ export default function AgentDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
-          >
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-muted border text-muted-foreground">
             <Radio className="w-3.5 h-3.5" />
             Test via campaign call
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => { if (confirm('Delete this agent?')) deleteMutation.mutate() }}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
-            style={{ border: '1px solid oklch(0.59 0.245 15 / 30%)', background: 'oklch(0.59 0.245 15 / 8%)', color: 'oklch(0.59 0.245 15)' }}
+            className="rounded-xl border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700"
           >
             <Trash2 className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total Calls', value: a._count?.calls ?? 0, icon: Phone, color: 'oklch(0.49 0.263 281)' },
-          { label: 'Campaigns', value: a._count?.campaigns ?? 0, icon: Sparkles, color: 'oklch(0.65 0.22 310)' },
-          { label: 'Temperature', value: a.temperature, icon: Thermometer, color: 'oklch(0.72 0.18 68)' },
-          { label: 'Max Duration', value: formatDuration(a.maxDuration), icon: Clock, color: 'oklch(0.55 0.215 163)' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="rounded-2xl p-4 flex flex-col items-center justify-center text-center"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-          >
-            <Icon className="w-4 h-4 mb-2" style={{ color }} />
-            <p className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>{value}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-          </div>
+          { label: 'Total Calls', value: a._count?.calls ?? 0, icon: Phone, colorClass: 'text-purple-600' },
+          { label: 'Campaigns', value: a._count?.campaigns ?? 0, icon: Sparkles, colorClass: 'text-fuchsia-500' },
+          { label: 'Temperature', value: a.temperature, icon: Thermometer, colorClass: 'text-amber-500' },
+          { label: 'Max Duration', value: formatDuration(a.maxDuration), icon: Clock, colorClass: 'text-emerald-500' },
+        ].map(({ label, value, icon: Icon, colorClass }) => (
+          <Card key={label} className="rounded-2xl py-4 gap-0">
+            <CardContent className="flex flex-col items-center justify-center text-center p-0 px-4">
+              <Icon className={`w-4 h-4 mb-2 ${colorClass}`} />
+              <p className="text-lg font-bold text-foreground">{value}</p>
+              <p className="text-[10px] mt-0.5 text-muted-foreground">{label}</p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* System Prompt — hero section */}
-      <div
-        className="rounded-2xl p-5 space-y-3"
-        style={{
-          background: 'var(--card)',
-          border: '2px solid oklch(0.49 0.263 281 / 35%)',
-          boxShadow: '0 0 0 4px oklch(0.49 0.263 281 / 6%)',
-        }}
-      >
-        <div
-          className="flex items-center gap-2.5"
-          style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.875rem' }}
-        >
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'oklch(0.49 0.263 281 / 14%)' }}>
-            <Mic2 className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
+      {/* System Prompt -- hero section */}
+      <Card className="rounded-2xl py-0 gap-0 border-2 border-primary/35 shadow-[0_0_0_4px] shadow-primary/5">
+        <CardHeader className="px-5 pt-5 pb-0 gap-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/15">
+              <Mic2 className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <CardTitle className="text-sm">System Prompt</CardTitle>
           </div>
-          <h3 className="font-bold text-sm" style={{ color: 'var(--foreground)' }}>System Prompt</h3>
+        </CardHeader>
+        <div className="px-5">
+          <Separator className="mt-3.5" />
         </div>
-        <div
-          className="rounded-xl p-4 overflow-y-auto"
-          style={{ background: 'var(--muted)', border: '1px solid var(--border)', minHeight: '150px', maxHeight: '320px' }}
-        >
-          <p className="text-xs font-mono leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--foreground)' }}>
-            {a.systemPrompt}
-          </p>
-        </div>
-      </div>
+        <CardContent className="px-5 pt-3 pb-5">
+          <div className="rounded-xl p-4 overflow-y-auto bg-muted border min-h-[150px] max-h-[320px]">
+            <p className="text-xs font-mono leading-relaxed whitespace-pre-wrap text-foreground">
+              {a.systemPrompt}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Config Card */}
-      <div className="rounded-2xl p-5 space-y-5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-        <div
-          className="flex items-center gap-2.5"
-          style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.875rem' }}
-        >
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'oklch(0.49 0.263 281 / 10%)' }}>
-            <Bot className="w-3.5 h-3.5" style={{ color: 'oklch(0.49 0.263 281)' }} />
+      <Card className="rounded-2xl py-0 gap-0">
+        <CardHeader className="px-5 pt-5 pb-0 gap-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10">
+              <Bot className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <CardTitle className="text-sm">Configuration</CardTitle>
           </div>
-          <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Configuration</h3>
+        </CardHeader>
+        <div className="px-5">
+          <Separator className="mt-3.5" />
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <InfoRow icon={Globe} label="Language" value={a.language?.toUpperCase() || 'EN'} />
-          <InfoRow icon={Mic2} label="Voice" value={a.voice || 'rachel'} />
-        </div>
-
-        {/* Agent Status */}
-        <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3"
-          style={{
-            background: a.elevenLabsAgentId ? 'oklch(0.55 0.215 163 / 8%)' : 'oklch(0.72 0.18 68 / 8%)',
-            border: `1px solid ${a.elevenLabsAgentId ? 'oklch(0.55 0.215 163 / 20%)' : 'oklch(0.72 0.18 68 / 20%)'}`,
-          }}
-        >
-          {a.elevenLabsAgentId ? (
-            <Link2 className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.45 0.215 163)' }} />
-          ) : (
-            <Link2Off className="w-4 h-4 flex-shrink-0" style={{ color: 'oklch(0.62 0.18 68)' }} />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold" style={{ color: a.elevenLabsAgentId ? 'oklch(0.45 0.215 163)' : 'oklch(0.62 0.18 68)' }}>
-              {a.elevenLabsAgentId ? 'Deployed' : 'Not deployed'}
-            </p>
-            {a.elevenLabsAgentId && (
-              <p className="text-[10px] font-mono truncate" style={{ color: 'oklch(0.45 0.215 163 / 70%)' }}>
-                {a.elevenLabsAgentId}
-              </p>
-            )}
-            {syncMutation.isError && (
-              <p className="text-[10px] mt-1" style={{ color: 'oklch(0.52 0.245 15)' }}>
-                {syncMutation.error?.message || 'Sync failed'}
-              </p>
-            )}
+        <CardContent className="px-5 pt-5 pb-5 space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <InfoRow icon={Globe} label="Language" value={a.language?.toUpperCase() || 'EN'} />
+            <InfoRow icon={Mic2} label="Voice" value={a.voice || 'rachel'} />
           </div>
-          <button
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
-            style={
+
+          {/* Agent Status */}
+          <div
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${
               a.elevenLabsAgentId
-                ? {
-                    background: 'oklch(0.45 0.215 163 / 10%)',
-                    border: '1px solid oklch(0.45 0.215 163 / 25%)',
-                    color: 'oklch(0.45 0.215 163)',
-                  }
-                : {
-                    background: 'oklch(0.62 0.18 68 / 15%)',
-                    border: '1px solid oklch(0.62 0.18 68 / 30%)',
-                    color: 'oklch(0.52 0.18 68)',
-                  }
-            }
+                ? 'bg-emerald-500/10 border-emerald-500/20'
+                : 'bg-amber-500/10 border-amber-500/20'
+            }`}
           >
-            <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncMutation.isPending ? 'Syncing…' : a.elevenLabsAgentId ? 'Re-sync' : 'Deploy Agent'}
-          </button>
-        </div>
-
-        {a.description && (
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
-              Description
-            </p>
-            <p className="text-sm" style={{ color: 'var(--foreground)' }}>{a.description}</p>
-          </div>
-        )}
-
-        {/* First Message */}
-        {a.firstMessage && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <MessageSquare className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>
-                First Message
+            {a.elevenLabsAgentId ? (
+              <Link2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+            ) : (
+              <Link2Off className="w-4 h-4 flex-shrink-0 text-amber-600" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className={`text-xs font-semibold ${a.elevenLabsAgentId ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {a.elevenLabsAgentId ? 'Deployed' : 'Not deployed'}
               </p>
+              {a.elevenLabsAgentId && (
+                <p className="text-[10px] font-mono truncate text-emerald-600/70">
+                  {a.elevenLabsAgentId}
+                </p>
+              )}
+              {syncMutation.isError && (
+                <p className="text-[10px] mt-1 text-red-600">
+                  {syncMutation.error?.message || 'Sync failed'}
+                </p>
+              )}
             </div>
-            <div
-              className="rounded-xl p-3"
-              style={{ background: 'oklch(0.55 0.215 163 / 8%)', border: '1px solid oklch(0.55 0.215 163 / 20%)' }}
+            <Button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              variant="outline"
+              size="sm"
+              className={`flex-shrink-0 text-[11px] font-semibold ${
+                a.elevenLabsAgentId
+                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/15 border-amber-500/30 text-amber-700 hover:bg-amber-500/25'
+              }`}
             >
-              <p className="text-sm italic" style={{ color: 'var(--foreground)' }}>&ldquo;{a.firstMessage}&rdquo;</p>
-            </div>
+              <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? 'Syncing...' : a.elevenLabsAgentId ? 'Re-sync' : 'Deploy Agent'}
+            </Button>
           </div>
-        )}
-      </div>
+
+          {a.description && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-muted-foreground">
+                Description
+              </p>
+              <p className="text-sm text-foreground">{a.description}</p>
+            </div>
+          )}
+
+          {/* First Message */}
+          {a.firstMessage && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  First Message
+                </p>
+              </div>
+              <div className="rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-sm italic text-foreground">&ldquo;{a.firstMessage}&rdquo;</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Knowledge Base Documents */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <div
-          className="px-5 py-4 flex items-center justify-between"
-          style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
-        >
+      <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
+        <CardHeader className="px-5 py-4 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'oklch(0.6 0.19 220 / 12%)', border: '1px solid oklch(0.6 0.19 220 / 20%)' }}
-            >
-              <BookOpen className="w-3.5 h-3.5" style={{ color: 'oklch(0.6 0.19 220)' }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10 border border-blue-500/20">
+              <BookOpen className="w-3.5 h-3.5 text-blue-600" />
             </div>
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Knowledge Base</h3>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
-            >
+            <CardTitle className="text-sm">Knowledge Base</CardTitle>
+            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
               {docs.length}
-            </span>
+            </Badge>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => { setKbFormOpen((v) => !v); setKbError(null) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            className="text-xs"
           >
             {kbFormOpen ? <ChevronUp className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
             {kbFormOpen ? 'Close' : 'Add Document'}
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
 
         {/* Add document inline form */}
         {kbFormOpen && (
-          <div
-            className="px-5 py-4 space-y-3"
-            style={{ background: 'oklch(0.6 0.19 220 / 3%)', borderBottom: '1px solid var(--border)' }}
-          >
+          <div className="px-5 py-4 space-y-3 bg-blue-500/5 border-b">
             {/* Text / URL tab switcher */}
-            <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--muted)' }}>
+            <div className="flex gap-1 p-1 rounded-xl w-fit bg-muted">
               {(['TEXT', 'URL'] as const).map((tab) => {
                 const Icon = DOC_TYPE_ICONS[tab]
                 return (
                   <button
                     key={tab}
                     onClick={() => { setKbActiveTab(tab); setKbError(null) }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
-                    style={{
-                      background: kbActiveTab === tab ? 'var(--card)' : 'transparent',
-                      color: kbActiveTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
-                      boxShadow: kbActiveTab === tab ? '0 1px 3px oklch(0 0 0 / 10%)' : 'none',
-                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
+                      kbActiveTab === tab
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground'
+                    }`}
                   >
                     <Icon className="w-3 h-3" />
                     {DOC_TYPE_LABELS[tab]}
@@ -519,495 +511,411 @@ export default function AgentDetailPage() {
 
             {kbActiveTab === 'TEXT' && (
               <>
-                <input
+                <Input
                   type="text"
                   placeholder="Document name"
                   value={kbTextForm.name}
                   onChange={(e) => setKbTextForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl"
                 />
-                <textarea
+                <Textarea
                   placeholder="Document content..."
                   value={kbTextForm.content}
                   onChange={(e) => setKbTextForm((p) => ({ ...p, content: e.target.value }))}
                   rows={4}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl resize-none"
                 />
               </>
             )}
 
             {kbActiveTab === 'URL' && (
               <>
-                <input
+                <Input
                   type="text"
                   placeholder="Document name"
                   value={kbUrlForm.name}
                   onChange={(e) => setKbUrlForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl"
                 />
-                <input
+                <Input
                   type="url"
                   placeholder="https://example.com/document"
                   value={kbUrlForm.url}
                   onChange={(e) => setKbUrlForm((p) => ({ ...p, url: e.target.value }))}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl"
                 />
               </>
             )}
 
             {kbError && (
-              <div className="flex items-center gap-1.5 text-xs" style={{ color: 'oklch(0.52 0.245 15)' }}>
+              <div className="flex items-center gap-1.5 text-xs text-red-600">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 {kbError}
               </div>
             )}
 
-            <button
+            <Button
               onClick={handleAddDoc}
               disabled={createDocMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 disabled:opacity-60"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.6 0.19 220), oklch(0.49 0.263 281))',
-                boxShadow: '0 4px 12px oklch(0.6 0.19 220 / 25%)',
-              }}
+              className="rounded-xl font-semibold"
             >
               {createDocMutation.isPending ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Plus className="w-3.5 h-3.5" />
               )}
-              {createDocMutation.isPending ? 'Adding…' : 'Add Document'}
-            </button>
+              {createDocMutation.isPending ? 'Adding...' : 'Add Document'}
+            </Button>
           </div>
         )}
 
         {/* Document list */}
-        <div style={{ background: 'var(--card)' }}>
+        <CardContent className="p-0">
           {docsLoading ? (
             <div className="px-5 py-8 text-center">
-              <Loader2 className="w-5 h-5 animate-spin mx-auto" style={{ color: 'var(--muted-foreground)' }} />
+              <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
             </div>
           ) : docs.length === 0 ? (
             <div className="px-5 py-8 text-center">
-              <BookOpen className="w-7 h-7 mx-auto mb-2 opacity-20" style={{ color: 'var(--foreground)' }} />
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No documents assigned to this agent.</p>
+              <BookOpen className="w-7 h-7 mx-auto mb-2 opacity-20 text-foreground" />
+              <p className="text-sm text-muted-foreground">No documents assigned to this agent.</p>
             </div>
           ) : (
             docs.map((doc, idx) => {
               const Icon = DOC_TYPE_ICONS[doc.type] || FileText
               return (
-                <div
-                  key={doc.id}
-                  className="flex items-center gap-3 px-5 py-3"
-                  style={{ borderBottom: idx < docs.length - 1 ? '1px solid var(--border)' : 'none' }}
-                >
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
-                  >
-                    <Icon className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-                        {doc.name}
-                      </p>
-                      <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0"
-                        style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
-                      >
-                        {DOC_TYPE_LABELS[doc.type]}
-                      </span>
+                <div key={doc.id}>
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted border">
+                      <Icon className="w-3 h-3 text-muted-foreground" />
                     </div>
-                    <p className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
-                      {formatDate(doc.createdAt)}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate text-foreground">
+                          {doc.name}
+                        </p>
+                        <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+                          {DOC_TYPE_LABELS[doc.type]}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDate(doc.createdAt)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon-xs"
+                      onClick={() => deleteDocMutation.mutate(doc.id)}
+                      disabled={deleteDocMutation.isPending}
+                      className="rounded-lg border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700 flex-shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <button
-                    onClick={() => deleteDocMutation.mutate(doc.id)}
-                    disabled={deleteDocMutation.isPending}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105 flex-shrink-0"
-                    style={{
-                      background: 'oklch(0.59 0.245 15 / 8%)',
-                      border: '1px solid oklch(0.59 0.245 15 / 20%)',
-                      color: 'oklch(0.59 0.245 15)',
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  {idx < docs.length - 1 && <Separator />}
                 </div>
               )
             })
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Campaigns */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <div
-          className="px-5 py-4 flex items-center justify-between"
-          style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
-        >
+      <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
+        <CardHeader className="px-5 py-4 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'oklch(0.65 0.22 310 / 12%)', border: '1px solid oklch(0.65 0.22 310 / 20%)' }}
-            >
-              <BarChart2 className="w-3.5 h-3.5" style={{ color: 'oklch(0.55 0.22 310)' }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-fuchsia-500/10 border border-fuchsia-500/20">
+              <BarChart2 className="w-3.5 h-3.5 text-fuchsia-600" />
             </div>
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Campaigns</h3>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
-            >
+            <CardTitle className="text-sm">Campaigns</CardTitle>
+            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
               {agentCampaigns.length}
-            </span>
+            </Badge>
           </div>
           <Link href={`/campaigns/new?agentId=${id}`}>
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            >
+            <Button variant="outline" size="sm" className="text-xs">
               <Plus className="w-3 h-3" />
               New Campaign
-            </button>
+            </Button>
           </Link>
-        </div>
+        </CardHeader>
 
-        <div style={{ background: 'var(--card)' }}>
+        <CardContent className="p-0">
           {agentCampaigns.length === 0 ? (
             <div className="px-5 py-8 text-center">
-              <BarChart2 className="w-7 h-7 mx-auto mb-2 opacity-20" style={{ color: 'var(--foreground)' }} />
-              <p className="text-sm mb-3" style={{ color: 'var(--muted-foreground)' }}>No campaigns yet</p>
+              <BarChart2 className="w-7 h-7 mx-auto mb-2 opacity-20 text-foreground" />
+              <p className="text-sm mb-3 text-muted-foreground">No campaigns yet</p>
               <Link href={`/campaigns/new?agentId=${id}`}>
-                <button
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 hover:scale-105"
-                  style={{
-                    background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                    boxShadow: '0 4px 12px oklch(0.49 0.263 281 / 25%)',
-                  }}
-                >
+                <Button className="rounded-xl text-xs font-semibold">
                   <Plus className="w-3 h-3" />
                   Create Campaign
-                </button>
+                </Button>
               </Link>
             </div>
           ) : (
             agentCampaigns.map((campaign: Record<string, unknown>, idx: number) => {
-              const statusColors: Record<string, { color: string; bg: string }> = {
-                RUNNING:   { color: 'oklch(0.45 0.215 163)', bg: 'oklch(0.55 0.215 163 / 10%)' },
-                COMPLETED: { color: 'oklch(0.45 0.215 163)', bg: 'oklch(0.55 0.215 163 / 10%)' },
-                PAUSED:    { color: 'oklch(0.62 0.18 68)', bg: 'oklch(0.72 0.18 68 / 10%)' },
-                DRAFT:     { color: 'var(--muted-foreground)', bg: 'var(--muted)' },
-                SCHEDULED: { color: 'oklch(0.6 0.19 220)', bg: 'oklch(0.6 0.19 220 / 10%)' },
-                CANCELLED: { color: 'var(--muted-foreground)', bg: 'var(--muted)' },
-              }
-              const sc = statusColors[campaign.status as string] ?? statusColors.DRAFT
+              const statusClass = CAMPAIGN_STATUS_CONFIG[campaign.status as string] ?? CAMPAIGN_STATUS_CONFIG.DRAFT
               const count = campaign._count as Record<string, number> | undefined
               const total = count?.contacts ?? 0
               const calls = count?.calls ?? 0
               const progress = total > 0 ? Math.round((calls / total) * 100) : 0
               return (
-                <Link href={`/campaigns/${campaign.id}`} key={campaign.id as string}>
-                  <div
-                    className="flex items-center gap-3 px-5 py-3 hover:opacity-80 transition-opacity cursor-pointer"
-                    style={{ borderBottom: idx < agentCampaigns.length - 1 ? '1px solid var(--border)' : 'none' }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
-                          {campaign.name as string}
-                        </p>
-                        <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
-                          style={{ background: sc.bg, color: sc.color }}
-                        >
-                          {campaign.status as string}
-                        </span>
-                      </div>
-                      {total > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--muted)' }}>
-                            <div
-                              className="h-full rounded-full transition-all duration-300"
-                              style={{ width: `${progress}%`, background: 'oklch(0.49 0.263 281)' }}
-                            />
-                          </div>
-                          <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
-                            {calls}/{total}
-                          </span>
+                <div key={campaign.id as string}>
+                  <Link href={`/campaigns/${campaign.id}`}>
+                    <div className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium truncate text-foreground">
+                            {campaign.name as string}
+                          </p>
+                          <Badge variant="ghost" className={`text-[10px] font-bold rounded-md ${statusClass}`}>
+                            {campaign.status as string}
+                          </Badge>
                         </div>
-                      )}
+                        {total > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-muted">
+                              <div
+                                className="h-full rounded-full transition-all duration-300 bg-primary"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] flex-shrink-0 text-muted-foreground">
+                              {calls}/{total}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  {idx < agentCampaigns.length - 1 && <Separator />}
+                </div>
               )
             })
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Agent Tools */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <div
-          className="px-5 py-4 flex items-center justify-between"
-          style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
-        >
+      <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
+        <CardHeader className="px-5 py-4 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <Wrench className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Custom Tools</h3>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
-            >
+            <Wrench className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm">Custom Tools</CardTitle>
+            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
               {tools.length}
-            </span>
+            </Badge>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => { setToolFormOpen((v) => !v); setToolError(null) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-            style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            className="text-xs"
           >
             {toolFormOpen ? <ChevronUp className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
             {toolFormOpen ? 'Close' : 'Add Tool'}
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
 
         {/* Add tool form */}
         {toolFormOpen && (
-          <div
-            className="px-5 py-4 space-y-3"
-            style={{ background: 'oklch(0.49 0.263 281 / 3%)', borderBottom: '1px solid var(--border)' }}
-          >
+          <div className="px-5 py-4 space-y-3 bg-primary/5 border-b">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
                   Name (snake_case)
-                </label>
-                <input
+                </Label>
+                <Input
                   type="text"
                   placeholder="get_pricing"
                   value={toolForm.name}
                   onChange={(e) => setToolForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+                <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
                   Webhook URL (https://)
-                </label>
-                <input
+                </Label>
+                <Input
                   type="url"
                   placeholder="https://yoursite.com/webhook"
                   value={toolForm.webhookUrl}
                   onChange={(e) => setToolForm((p) => ({ ...p, webhookUrl: e.target.value }))}
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  className="rounded-xl"
                 />
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
                 Description
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 placeholder="What does this tool do?"
                 value={toolForm.description}
                 onChange={(e) => setToolForm((p) => ({ ...p, description: e.target.value }))}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                className="rounded-xl"
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
                 Parameters (JSON Schema)
-              </label>
-              <textarea
+              </Label>
+              <Textarea
                 rows={4}
                 value={toolForm.parameters}
                 onChange={(e) => setToolForm((p) => ({ ...p, parameters: e.target.value }))}
-                className="w-full rounded-xl px-3 py-2 text-xs font-mono outline-none resize-none"
-                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                className="rounded-xl font-mono text-xs resize-none"
               />
             </div>
             {toolError && (
-              <div className="flex items-center gap-1.5 text-xs" style={{ color: 'oklch(0.52 0.245 15)' }}>
+              <div className="flex items-center gap-1.5 text-xs text-red-600">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 {toolError}
               </div>
             )}
-            <button
+            <Button
               onClick={handleAddTool}
               disabled={createToolMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 disabled:opacity-60"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.49 0.263 281), oklch(0.65 0.22 310))',
-                boxShadow: '0 4px 12px oklch(0.49 0.263 281 / 25%)',
-              }}
+              className="rounded-xl font-semibold"
             >
               {createToolMutation.isPending ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Plus className="w-3.5 h-3.5" />
               )}
-              {createToolMutation.isPending ? 'Adding…' : 'Add Tool'}
-            </button>
+              {createToolMutation.isPending ? 'Adding...' : 'Add Tool'}
+            </Button>
           </div>
         )}
 
         {/* Tool list */}
-        <div style={{ background: 'var(--card)' }}>
+        <CardContent className="p-0">
           {tools.length === 0 ? (
             <div className="px-5 py-8 text-center">
-              <Wrench className="w-7 h-7 mx-auto mb-2 opacity-20" style={{ color: 'var(--foreground)' }} />
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No custom tools yet.</p>
+              <Wrench className="w-7 h-7 mx-auto mb-2 opacity-20 text-foreground" />
+              <p className="text-sm text-muted-foreground">No custom tools yet.</p>
             </div>
           ) : (
             tools.map((tool, idx) => (
-              <div
-                key={tool.id}
-                className="flex items-start gap-3 px-5 py-3.5"
-                style={{ borderBottom: idx < tools.length - 1 ? '1px solid var(--border)' : 'none' }}
-              >
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
-                >
-                  <Wrench className="w-3 h-3" style={{ color: 'var(--muted-foreground)' }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium font-mono" style={{ color: 'var(--foreground)' }}>
-                      {tool.name}
-                    </p>
-                    {!tool.isActive && (
-                      <span
-                        className="text-[10px] px-1.5 py-0.5 rounded-md"
-                        style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}
-                      >
-                        disabled
-                      </span>
-                    )}
+              <div key={tool.id}>
+                <div className="flex items-start gap-3 px-5 py-3.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 bg-muted border">
+                    <Wrench className="w-3 h-3 text-muted-foreground" />
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                    {tool.description}
-                  </p>
-                  <p className="text-[10px] mt-0.5 font-mono truncate" style={{ color: 'var(--muted-foreground)' }}>
-                    {tool.webhookUrl}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium font-mono text-foreground">
+                        {tool.name}
+                      </p>
+                      {!tool.isActive && (
+                        <Badge variant="secondary" className="text-[10px] rounded-md">
+                          disabled
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs mt-0.5 text-muted-foreground">
+                      {tool.description}
+                    </p>
+                    <p className="text-[10px] mt-0.5 font-mono truncate text-muted-foreground">
+                      {tool.webhookUrl}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => toggleToolMutation.mutate({ toolId: tool.id, isActive: !tool.isActive })}
+                      className={`text-[10px] font-medium ${
+                        tool.isActive
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20'
+                          : ''
+                      }`}
+                    >
+                      {tool.isActive ? 'Active' : 'Inactive'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-xs"
+                      onClick={() => deleteToolMutation.mutate(tool.id)}
+                      className="rounded-lg border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => toggleToolMutation.mutate({ toolId: tool.id, isActive: !tool.isActive })}
-                    className="text-[10px] px-2 py-1 rounded-lg font-medium transition-all duration-150 hover:scale-105"
-                    style={
-                      tool.isActive
-                        ? { background: 'oklch(0.55 0.215 163 / 10%)', color: 'oklch(0.45 0.215 163)', border: '1px solid oklch(0.55 0.215 163 / 20%)' }
-                        : { background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)' }
-                    }
-                  >
-                    {tool.isActive ? 'Active' : 'Inactive'}
-                  </button>
-                  <button
-                    onClick={() => deleteToolMutation.mutate(tool.id)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 hover:scale-105"
-                    style={{
-                      background: 'oklch(0.59 0.245 15 / 8%)',
-                      border: '1px solid oklch(0.59 0.245 15 / 20%)',
-                      color: 'oklch(0.59 0.245 15)',
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
+                {idx < tools.length - 1 && <Separator />}
               </div>
             ))
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Calls */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <div
-          className="px-5 py-3.5 flex items-center justify-between"
-          style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
-        >
+      <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
+        <CardHeader className="px-5 py-3.5 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>Recent Calls</h3>
+            <Phone className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm">Recent Calls</CardTitle>
           </div>
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          <span className="text-xs text-muted-foreground">
             {(a.calls || []).length} shown
           </span>
-        </div>
+        </CardHeader>
 
         {!a.calls?.length ? (
-          <div
-            className="px-5 py-10 text-center"
-            style={{ background: 'var(--card)' }}
-          >
-            <Phone className="w-8 h-8 mx-auto mb-2 opacity-20" style={{ color: 'var(--foreground)' }} />
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No calls yet</p>
-          </div>
+          <CardContent className="px-5 py-10 text-center">
+            <Phone className="w-8 h-8 mx-auto mb-2 opacity-20 text-foreground" />
+            <p className="text-sm text-muted-foreground">No calls yet</p>
+          </CardContent>
         ) : (
-          <div style={{ background: 'var(--card)' }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                  {['Contact', 'Status', 'Duration', 'Date'].map((h) => (
-                    <th
-                      key={h}
-                      className="px-5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ color: 'var(--muted-foreground)' }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(a.calls || []).map((call: Record<string, unknown>) => {
-                  const sc = CALL_STATUS_CONFIG[call.status as string] || CALL_STATUS_CONFIG.CANCELLED
-                  return (
-                    <tr key={call.id as string} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-5 py-3">
-                        <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>
-                          {(call.contact as Record<string, unknown>)?.name as string || call.phoneNumber as string}
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                {['Contact', 'Status', 'Duration', 'Date'].map((h) => (
+                  <TableHead
+                    key={h}
+                    className="px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {h}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(a.calls || []).map((call: Record<string, unknown>) => {
+                const sc = CALL_STATUS_CONFIG[call.status as string] || CALL_STATUS_CONFIG.CANCELLED
+                return (
+                  <TableRow key={call.id as string}>
+                    <TableCell className="px-5 py-3">
+                      <p className="text-xs font-medium text-foreground">
+                        {(call.contact as Record<string, unknown>)?.name as string || call.phoneNumber as string}
+                      </p>
+                      {!!(call.contact as Record<string, unknown>)?.name && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {call.phoneNumber as string}
                         </p>
-                        {!!(call.contact as Record<string, unknown>)?.name && (
-                          <p className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>
-                            {call.phoneNumber as string}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span
-                          className="text-[10px] font-bold px-2 py-1 rounded-lg"
-                          style={{ background: sc.bg, color: sc.color }}
-                        >
-                          {sc.label}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDuration(call.duration as number)}
-                      </td>
-                      <td className="px-5 py-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {formatDate(call.startedAt as string)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-5 py-3">
+                      <Badge variant="ghost" className={`text-[10px] font-bold rounded-lg ${sc.className}`}>
+                        {sc.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-xs text-muted-foreground">
+                      {formatDuration(call.duration as number)}
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-xs text-muted-foreground">
+                      {formatDate(call.startedAt as string)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
@@ -1023,17 +931,14 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
-      >
-        <Icon className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted border">
+        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
       </div>
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
-        <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{value}</p>
+        <p className="text-sm font-medium text-foreground">{value}</p>
       </div>
     </div>
   )

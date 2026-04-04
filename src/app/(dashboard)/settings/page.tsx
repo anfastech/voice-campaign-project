@@ -91,14 +91,9 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-3xl">
       {/* Integrations */}
       <section>
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-foreground">Integrations</h2>
-            <p className="text-xs text-muted-foreground">Status of connected services</p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-foreground">Integrations</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Status of connected services</p>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           <IntegrationCard name="Voice Engine" icon={Volume2} connected={integrations.voiceEngine?.connected ?? false} />
@@ -111,16 +106,11 @@ export default function SettingsPage() {
 
       {/* Webhook Configuration — editable */}
       <section>
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-            <Webhook className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-foreground">Webhooks</h2>
-            <p className="text-xs text-muted-foreground">
-              Receive notifications when calls and campaigns complete
-            </p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-foreground">Webhooks</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Receive notifications when calls and campaigns complete
+          </p>
         </div>
 
         <Card className="shadow-none">
@@ -165,13 +155,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex items-start gap-2 p-3 rounded-lg text-xs bg-blue-500/5 border border-blue-500/15">
-              <Activity className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-600" />
-              <div className="text-blue-700 dark:text-blue-400">
-                <p className="font-semibold mb-0.5">Supported Events</p>
+            <div className="flex items-start gap-2 p-3 rounded-lg text-xs bg-muted border border-border">
+              <Activity className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+              <div className="text-muted-foreground">
+                <p className="font-semibold mb-0.5 text-foreground">Supported Events</p>
                 <p>
-                  <code className="text-[11px]">call.completed</code>, <code className="text-[11px]">call.failed</code>,{' '}
-                  <code className="text-[11px]">call.no_answer</code>, <code className="text-[11px]">campaign.completed</code>
+                  <code className="text-xs bg-background px-1 py-0.5 rounded border">call.completed</code>,{' '}
+                  <code className="text-xs bg-background px-1 py-0.5 rounded border">call.failed</code>,{' '}
+                  <code className="text-xs bg-background px-1 py-0.5 rounded border">call.no_answer</code>,{' '}
+                  <code className="text-xs bg-background px-1 py-0.5 rounded border">campaign.completed</code>
                 </p>
               </div>
             </div>
@@ -194,14 +186,9 @@ export default function SettingsPage() {
 
       {/* Appearance */}
       <section>
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
-            <Moon className="w-4 h-4 text-purple-600" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-foreground">Appearance</h2>
-            <p className="text-xs text-muted-foreground">Customize how the dashboard looks</p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-foreground">Appearance</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Customize how the dashboard looks</p>
         </div>
 
         <Card className="shadow-none">

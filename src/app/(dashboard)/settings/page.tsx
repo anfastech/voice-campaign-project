@@ -5,7 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Activity, Webhook, Shield, CheckCircle2, XCircle,
   Moon, Sun, Globe, Save, Loader2, Eye, EyeOff,
+  Volume2, Bot, Phone,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,14 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
-function IntegrationCard({ name, icon, connected }: { name: string; icon: string; connected: boolean }) {
+function IntegrationCard({ name, icon: Icon, connected }: { name: string; icon: LucideIcon; connected: boolean }) {
   return (
     <Card className="shadow-none">
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
-          connected ? 'bg-emerald-500/10' : 'bg-muted'
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+          connected ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
         }`}>
-          {icon}
+          <Icon className="w-5 h-5" />
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">{name}</p>
@@ -99,9 +101,9 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
-          <IntegrationCard name="Voice Engine" icon="🔊" connected={integrations.voiceEngine?.connected ?? false} />
-          <IntegrationCard name="AI Model" icon="🤖" connected={integrations.aiModel?.connected ?? false} />
-          <IntegrationCard name="Telephony" icon="📞" connected={integrations.telephony?.connected ?? false} />
+          <IntegrationCard name="Voice Engine" icon={Volume2} connected={integrations.voiceEngine?.connected ?? false} />
+          <IntegrationCard name="AI Model" icon={Bot} connected={integrations.aiModel?.connected ?? false} />
+          <IntegrationCard name="Telephony" icon={Phone} connected={integrations.telephony?.connected ?? false} />
         </div>
       </section>
 

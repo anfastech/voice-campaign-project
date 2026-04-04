@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getProvider } from '@/lib/providers'
+import { syncAgent } from '@/lib/services/agent-service'
 import { checkCampaignCompletion } from '@/lib/services/webhook-service'
 
 export async function listCampaigns(userId: string, params: {
@@ -41,10 +42,13 @@ export async function createCampaign(userId: string, data: {
   agentId: string
   contactIds: string[]
   scheduledAt?: string
+  autoStart?: boolean
   maxRetries?: number
   retryDelayMinutes?: number
   callsPerMinute?: number
 }) {
+  const status = data.autoStart ? 'RUNNING' : data.scheduledAt ? 'SCHEDULED' : 'DRAFT'
+
   const campaign = await prisma.campaign.create({
     data: {
       name: data.name,
@@ -56,7 +60,8 @@ export async function createCampaign(userId: string, data: {
       retryDelayMinutes: data.retryDelayMinutes ?? 60,
       callsPerMinute: data.callsPerMinute ?? 5,
       totalContacts: data.contactIds.length,
-      status: data.scheduledAt ? 'SCHEDULED' : 'DRAFT',
+      status,
+      startedAt: data.autoStart ? new Date() : undefined,
       contacts: {
         create: data.contactIds.map((contactId) => ({ contactId })),
       },
@@ -66,6 +71,15 @@ export async function createCampaign(userId: string, data: {
       _count: { select: { contacts: true } },
     },
   })
+
+  // Auto-start: kick off the first batch of calls
+  if (data.autoStart) {
+    try {
+      await startNextBatch(campaign.id)
+    } catch (err) {
+      console.error('Auto-start batch error:', err)
+    }
+  }
 
   return campaign
 }
@@ -250,15 +264,25 @@ export async function startCampaign(id: string) {
     throw new Error('No pending contacts to call')
   }
 
+  // Ensure agent is synced to provider with latest config (end_call tool, webhook URL, etc.)
+  const agent = await prisma.agent.findFirst({
+    where: { campaigns: { some: { id } } },
+    select: { id: true, provider: true, elevenLabsAgentId: true },
+  })
+  if (agent) {
+    try {
+      await syncAgent(agent.id)
+    } catch (err) {
+      console.error('Pre-start agent sync failed (continuing):', err instanceof Error ? err.message : err)
+    }
+  }
+
   await prisma.campaign.update({
     where: { id },
     data: { status: 'RUNNING', startedAt: campaignCheck.startedAt ?? new Date() },
   })
 
   const batchResult = await startNextBatch(id)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const agent = await prisma.agent.findFirst({ where: { campaigns: { some: { id } } }, select: { provider: true } })
   const providerName = agent?.provider || 'ELEVENLABS'
 
   return {

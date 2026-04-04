@@ -6,6 +6,29 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, CheckCircle, Search, Bot, Users, Settings2, FileText, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+function getNextSlot(): { date: string; time: string } {
+  const now = new Date()
+  const mins = now.getMinutes()
+  const next5 = Math.ceil((mins + 1) / 5) * 5
+  now.setMinutes(next5, 0, 0)
+  if (next5 >= 60) now.setHours(now.getHours() + 1, next5 - 60, 0, 0)
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yy = String(now.getFullYear()).slice(-2)
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mi = String(now.getMinutes()).padStart(2, '0')
+  return { date: `${dd}/${mm}/${yy}`, time: `${hh}:${mi}` }
+}
+
+function parseScheduleToISO(date: string, time: string): string | null {
+  const parts = date.split('/')
+  if (parts.length !== 3) return null
+  const [dd, mm, yy] = parts
+  const fullYear = 2000 + parseInt(yy)
+  const d = new Date(fullYear, parseInt(mm) - 1, parseInt(dd), ...time.split(':').map(Number) as [number, number])
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
+
 interface ContactGroup {
   id: string
   name: string
@@ -26,7 +49,9 @@ export default function NewCampaignPage() {
     maxRetries: 3,
     retryDelayMinutes: 60,
     callsPerMinute: 5,
-    scheduledAt: '',
+    schedDate: '',
+    schedTime: '',
+    launchMode: 'immediate' as 'immediate' | 'scheduled' | 'draft',
   })
 
   const { data: agentsRaw = [] } = useQuery({
@@ -450,41 +475,75 @@ export default function NewCampaignPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, scheduledAt: '' })}
-                className="px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+                onClick={() => setFormData({ ...formData, schedDate: '', schedTime: '', launchMode: 'immediate' })}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
                 style={{
-                  background: !formData.scheduledAt ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
-                  border: !formData.scheduledAt ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
-                  color: !formData.scheduledAt ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
+                  background: formData.launchMode === 'immediate' ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
+                  border: formData.launchMode === 'immediate' ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
+                  color: formData.launchMode === 'immediate' ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
                 }}
               >
-                Start as Draft
+                Start immediately
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, scheduledAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16) })}
+                onClick={() => {
+                  const slot = getNextSlot()
+                  setFormData({ ...formData, schedDate: formData.schedDate || slot.date, schedTime: formData.schedTime || slot.time, launchMode: 'scheduled' })
+                }}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
                 style={{
-                  background: formData.scheduledAt ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
-                  border: formData.scheduledAt ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
-                  color: formData.scheduledAt ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
+                  background: formData.launchMode === 'scheduled' ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
+                  border: formData.launchMode === 'scheduled' ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
+                  color: formData.launchMode === 'scheduled' ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
                 }}
               >
-                <Calendar className="w-3 h-3" /> Schedule
+                <Calendar className="w-3 h-3" /> Schedule for later
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, schedDate: '', schedTime: '', launchMode: 'draft' })}
+                className="px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+                style={{
+                  background: formData.launchMode === 'draft' ? 'oklch(0.49 0.263 281 / 10%)' : 'var(--muted)',
+                  border: formData.launchMode === 'draft' ? '1px solid oklch(0.49 0.263 281 / 40%)' : '1px solid var(--border)',
+                  color: formData.launchMode === 'draft' ? 'oklch(0.49 0.263 281)' : 'var(--muted-foreground)',
+                }}
+              >
+                Save as Draft
               </button>
             </div>
-            {formData.scheduledAt && (
-              <input
-                type="datetime-local"
-                value={formData.scheduledAt}
-                onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
-                style={{
-                  background: 'var(--input)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--foreground)',
-                }}
-              />
+            {formData.launchMode === 'scheduled' && (
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                  <label className="text-[10px] font-medium" style={{ color: 'var(--muted-foreground)' }}>Date (dd/mm/yy)</label>
+                  <input
+                    placeholder="dd/mm/yy"
+                    value={formData.schedDate}
+                    onChange={(e) => setFormData({ ...formData, schedDate: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                    style={{
+                      background: 'var(--input)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label className="text-[10px] font-medium" style={{ color: 'var(--muted-foreground)' }}>Time</label>
+                  <input
+                    type="time"
+                    value={formData.schedTime}
+                    onChange={(e) => setFormData({ ...formData, schedTime: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                    style={{
+                      background: 'var(--input)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
@@ -532,7 +591,7 @@ export default function NewCampaignPage() {
               { label: 'Contacts', value: `${formData.contactIds.length} selected` },
               { label: 'Max Retries', value: formData.maxRetries },
               { label: 'Calls / min', value: formData.callsPerMinute },
-              { label: 'Schedule', value: formData.scheduledAt ? new Date(formData.scheduledAt).toLocaleString() : 'Draft (manual start)' },
+              { label: 'Schedule', value: formData.launchMode === 'immediate' ? 'Start immediately' : formData.launchMode === 'scheduled' && formData.schedDate ? `${formData.schedDate} ${formData.schedTime}` : 'Draft (manual start)' },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
@@ -560,13 +619,17 @@ export default function NewCampaignPage() {
             </button>
             <button
               onClick={() => {
-                const data = { ...formData }
-                if (data.scheduledAt) {
-                  data.scheduledAt = new Date(data.scheduledAt).toISOString()
+                const { launchMode, schedDate, schedTime, ...rest } = formData
+                const data: any = { ...rest }
+                if (launchMode === 'immediate') {
+                  data.autoStart = true
+                } else if (launchMode === 'scheduled' && schedDate && schedTime) {
+                  const iso = parseScheduleToISO(schedDate, schedTime)
+                  if (iso) data.scheduledAt = iso
                 }
                 createCampaign.mutate(data)
               }}
-              disabled={createCampaign.isPending}
+              disabled={createCampaign.isPending || (formData.launchMode === 'scheduled' && (!formData.schedDate || !formData.schedTime))}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               style={{ background: gradientPrimary, boxShadow: shadowPrimary }}
             >
@@ -576,7 +639,7 @@ export default function NewCampaignPage() {
                   Creating...
                 </>
               ) : (
-                formData.scheduledAt ? 'Schedule Campaign' : 'Create Campaign'
+                formData.launchMode === 'immediate' ? 'Create & Start' : formData.launchMode === 'scheduled' ? 'Schedule Campaign' : 'Save as Draft'
               )}
             </button>
           </div>

@@ -62,6 +62,15 @@ function getWebhookUrl(): string | null {
   return `${base.replace(/\/$/, '')}/api/webhooks/elevenlabs`
 }
 
+// Built-in system tools config — goes inside conversation_config.agent.prompt.built_in_tools
+const BUILT_IN_TOOLS = {
+  end_call: {
+    name: 'end_call',
+    description: 'Immediately end and disconnect the call. Use when: user says bye/goodbye/hang up/end call/not interested, conversation objective is complete, user is unresponsive after 2 attempts, or user asks to stop. Do not hesitate — end the call decisively.',
+    params: { system_tool_type: 'end_call' },
+  },
+}
+
 export class ElevenLabsProvider implements VoiceProviderService {
   readonly providerName = 'ELEVENLABS' as const
 
@@ -69,13 +78,19 @@ export class ElevenLabsProvider implements VoiceProviderService {
     const voiceId = VOICE_ID_MAP[config.voice || 'rachel'] || VOICE_ID_MAP['rachel']
     const webhookUrl = getWebhookUrl()
 
+    // Webhook tools go in top-level tools array, system tools go in built_in_tools
+    const webhookTools = (config.tools || []).filter((t) => t.type === 'webhook')
+
     const agentData = await elFetch('/convai/agents/create', {
       method: 'POST',
       body: JSON.stringify({
         name: config.name,
         conversation_config: {
           agent: {
-            prompt: { prompt: config.systemPrompt },
+            prompt: {
+              prompt: config.systemPrompt,
+              built_in_tools: BUILT_IN_TOOLS,
+            },
             first_message: config.firstMessage || 'Hello! How are you doing today?',
             language: config.language || 'en',
             ...(config.knowledge_base?.length ? { knowledge_base: config.knowledge_base } : {}),
@@ -85,7 +100,7 @@ export class ElevenLabsProvider implements VoiceProviderService {
             max_duration_seconds: config.maxDuration || 300,
           },
         },
-        ...(config.tools?.length ? { tools: config.tools } : {}),
+        ...(webhookTools.length > 0 ? { tools: webhookTools } : {}),
         ...(webhookUrl
           ? { platform_settings: { webhook: { url: webhookUrl } } }
           : {}),
@@ -98,14 +113,19 @@ export class ElevenLabsProvider implements VoiceProviderService {
   async updateAgent(providerAgentId: string, config: Partial<AgentConfig>): Promise<void> {
     const conversationConfig: Record<string, unknown> = {}
 
-    if (config.systemPrompt || config.firstMessage || config.language || config.knowledge_base !== undefined) {
-      conversationConfig.agent = {
-        ...(config.systemPrompt ? { prompt: { prompt: config.systemPrompt } } : {}),
-        ...(config.firstMessage ? { first_message: config.firstMessage } : {}),
-        ...(config.language ? { language: config.language } : {}),
-        ...(config.knowledge_base !== undefined ? { knowledge_base: config.knowledge_base } : {}),
-      }
-    }
+    // Always include built_in_tools with end_call when updating prompt or doing a full sync
+    const promptConfig: Record<string, unknown> = {}
+    if (config.systemPrompt) promptConfig.prompt = config.systemPrompt
+    // Always ensure end_call is enabled
+    promptConfig.built_in_tools = BUILT_IN_TOOLS
+
+    const agentConfig: Record<string, unknown> = { prompt: promptConfig }
+    if (config.firstMessage) agentConfig.first_message = config.firstMessage
+    if (config.language) agentConfig.language = config.language
+    if (config.knowledge_base !== undefined) agentConfig.knowledge_base = config.knowledge_base
+
+    conversationConfig.agent = agentConfig
+
     if (config.voice) {
       const voiceId = VOICE_ID_MAP[config.voice] || config.voice
       conversationConfig.tts = { voice_id: voiceId }
@@ -115,10 +135,14 @@ export class ElevenLabsProvider implements VoiceProviderService {
     }
 
     const webhookUrl = getWebhookUrl()
+    // Only webhook tools go in top-level tools array
+    const webhookTools = config.tools !== undefined
+      ? config.tools.filter((t) => t.type === 'webhook')
+      : undefined
     const body: Record<string, unknown> = {
-      ...(Object.keys(conversationConfig).length > 0 ? { conversation_config: conversationConfig } : {}),
+      conversation_config: conversationConfig,
       ...(config.name ? { name: config.name } : {}),
-      ...(config.tools !== undefined ? { tools: config.tools } : {}),
+      ...(webhookTools !== undefined ? { tools: webhookTools } : {}),
       ...(webhookUrl
         ? { platform_settings: { webhook: { url: webhookUrl } } }
         : {}),
@@ -153,7 +177,10 @@ export class ElevenLabsProvider implements VoiceProviderService {
           name: `Campaign Agent ${Date.now()}`,
           conversation_config: {
             agent: {
-              prompt: { prompt: config.systemPrompt },
+              prompt: {
+                prompt: config.systemPrompt,
+                built_in_tools: BUILT_IN_TOOLS,
+              },
               first_message: 'Hello! How are you doing today?',
               language: 'en',
             },

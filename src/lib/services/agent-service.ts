@@ -9,9 +9,25 @@ import { validateWebhookUrl } from '@/lib/utils/validate-webhook-url'
 const KB_INSTRUCTION =
   `\n\nYou have access to a knowledge base of documents. When answering questions about specific information, facts, or details related to this conversation, always consult the knowledge base first and base your answers on the information found there. Prefer knowledge base content over general knowledge for any topic covered in the documents.`
 
+const END_CALL_INSTRUCTION =
+  `\n\n## Call Ending Rules
+You have an end_call tool. You MUST use it to end the call in these situations:
+- The user says goodbye, bye, thanks bye, ok bye, talk later, or any farewell — immediately say a brief goodbye and use end_call. Do NOT ask "is there anything else?" after a farewell.
+- The user says "hang up", "end the call", "disconnect", "stop calling", or similar — use end_call immediately.
+- The conversation objective has been achieved (lead qualified, information delivered, appointment booked, etc.) — wrap up briefly and use end_call.
+- The user is not interested, says "no thanks", "not interested", "remove me" — politely acknowledge and use end_call.
+- There is extended silence or the user is unresponsive after 2 attempts — say goodbye and use end_call.
+- The user asks you to stop or is getting frustrated — apologize briefly and use end_call.
+Never keep the call going after the user has indicated they want to end it. Be decisive about ending calls — a short, clean ending is better than lingering.`
+
 function withKbInstruction(systemPrompt: string): string {
   if (systemPrompt.toLowerCase().includes('knowledge base')) return systemPrompt
   return systemPrompt + KB_INSTRUCTION
+}
+
+function withEndCallInstruction(systemPrompt: string): string {
+  if (systemPrompt.toLowerCase().includes('end_call')) return systemPrompt
+  return systemPrompt + END_CALL_INSTRUCTION
 }
 
 export async function listAgents(userId: string) {
@@ -65,9 +81,10 @@ export async function createAgent(userId: string, data: {
   try {
     const provider = getProvider(agent.provider)
     if (provider.createAgent) {
-      const effectivePrompt = (agent.useKnowledgeBase && kbDocs.length > 0)
-        ? withKbInstruction(agent.systemPrompt)
-        : agent.systemPrompt
+      let effectivePrompt = withEndCallInstruction(agent.systemPrompt)
+      if (agent.useKnowledgeBase && kbDocs.length > 0) {
+        effectivePrompt = withKbInstruction(effectivePrompt)
+      }
       const { providerAgentId } = await provider.createAgent({
         name: agent.name,
         systemPrompt: effectivePrompt,
@@ -197,9 +214,10 @@ export async function syncAgent(id: string) {
     url: tool.webhookUrl,
   }))
 
-  const effectivePrompt = (agent.useKnowledgeBase && kbDocs.length > 0)
-    ? withKbInstruction(agent.systemPrompt)
-    : agent.systemPrompt
+  let effectivePrompt = withEndCallInstruction(agent.systemPrompt)
+  if (agent.useKnowledgeBase && kbDocs.length > 0) {
+    effectivePrompt = withKbInstruction(effectivePrompt)
+  }
 
   const agentConfig: AgentConfig = {
     name: agent.name,
@@ -209,7 +227,7 @@ export async function syncAgent(id: string) {
     language: agent.language,
     maxDuration: agent.maxDuration,
     knowledge_base: kbDocs.length > 0 ? kbDocs : undefined,
-    tools: toolsConfig.length > 0 ? toolsConfig : undefined,
+    tools: toolsConfig,
   }
 
   const provider = getProvider(agent.provider)
@@ -313,7 +331,7 @@ The JSON must have these exact fields:
 {
   "name": "short catchy agent name (2-4 words)",
   "description": "1-2 sentence description of what this agent does",
-  "systemPrompt": "detailed system prompt for the voice agent — include persona, tone, objectives, how to greet, handle objections, and end calls gracefully. Minimum 150 words.",
+  "systemPrompt": "detailed system prompt for the voice agent — include persona, tone, objectives, how to greet, handle objections, and end calls gracefully. MUST include instructions to use the end_call tool when: user says goodbye, objective is met, user is not interested, or user is unresponsive. Minimum 150 words.",
   "firstMessage": "the very first thing the agent says when the call connects — natural, warm, professional. 1-2 sentences.",
   "voice": "one of: rachel, domi, bella, antoni, josh, arnold, adam, sam (choose best match for the use case)",
   "language": "language code like en, es, fr, de",

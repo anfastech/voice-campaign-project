@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     if (user instanceof NextResponse) return user
     const userId = user.role === 'admin' ? user.id : user.adminUserId!
 
-    const { url } = await req.json()
+    const { url, name: sheetName } = await req.json()
     const match = url?.match(SHEET_ID_REGEX)
     if (!match) {
       return NextResponse.json(
@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       skipEmptyLines: true,
     })
 
-    const result = await importContacts(userId, data)
+    const sourceName = sheetName?.trim() || `GSheet Import ${new Date().toLocaleDateString('en-GB')}`
+    const result = await importContacts(userId, data, { sourceName, sourceType: 'gsheet' })
     return NextResponse.json(result)
   } catch (error) {
     console.error('Google Sheet import error:', error)

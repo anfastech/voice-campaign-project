@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-04-05] — Campaign Scheduling, Auto-Start, Group-Based Creation & Agent End-Call
+
+### Added
+- **Campaign 3-mode scheduling** — "Start immediately" (auto-starts calls), "Schedule for later" (date/time picker), "Save as Draft" (manual start)
+- **Auto-start on creation** — Selecting "Start immediately" creates the campaign and kicks off calls in one step, no extra Start button needed
+- **Scheduled campaign auto-launch** — Cron job (`/api/cron/campaigns`) runs every minute to auto-start campaigns whose scheduled time has passed
+- **Group-based campaign creation** — Select a contact group (from CSV/GSheet import) to create campaigns in one click instead of picking contacts individually
+- **Auto-group on import** — CSV and Google Sheets imports now auto-create a ContactGroup named after the file/sheet, grouping all imported contacts together
+- **Campaign name auto-fill** — Selecting a group auto-fills the campaign name with the group name (editable)
+- **Client contact groups API** — `GET /api/client/contact-groups` returns groups with member counts and contact IDs
+- **Google Sheets import accepts `name` param** — Custom name for the import group
+- **ElevenLabs `end_call` system tool** — Agents can now programmatically hang up after qualifying a lead or completing the conversation objective
+- **Cancelled filter** in conversation list dropdown
+- **vercel.json** with cron configuration for scheduled campaigns
+- Schedule dates displayed in dd/mm/yy format
+
+### Changed
+- Client campaign dialog redesigned: "By Group" / "Individual" contact selection modes
+- Client campaign creation refactored to use shared `createCampaign` service (DRY)
+- Admin campaign creation page updated with 3-mode launch selector
+- Submit button text changes contextually: "Create & Start", "Schedule Campaign", "Save as Draft"
+- `importContacts` service now accepts `sourceName` and `sourceType` options for auto-group creation
+
+---
+
 ## [2026-04-05] — Cost/Provider Data Hidden from Clients & Agent Workflow
 
 ### Changed

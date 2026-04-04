@@ -34,8 +34,10 @@ export function ConversationPanel({ apiBasePath }: ConversationPanelProps) {
     const calls = data?.calls || (Array.isArray(data) ? data : [])
     return calls.map((c: any) => ({
       id: c.id,
+      contactId: c.contact?.id || c.contactId || null,
       contactName: c.contact?.name || null,
       phoneNumber: c.phoneNumber,
+      agentId: c.agent?.id || c.agentId || null,
       conversationId: c.providerCallId || c.id,
       date: c.startedAt || c.createdAt,
       status: c.status,
@@ -99,6 +101,9 @@ export function ConversationPanel({ apiBasePath }: ConversationPanelProps) {
       {selected && (
         <ConversationSidebar
           callId={selected.id}
+          contactId={selected.contactId}
+          agentId={selected.agentId}
+          contactName={selected.contactName}
           status={selected.status}
           tags={selected.tags}
           reasonEnded={selected.metadata?.termination_reason || null}

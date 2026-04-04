@@ -28,8 +28,35 @@ import {
   Bot,
   ChevronDown,
   ChevronUp,
+  FolderOpen,
+  UserPlus,
 } from 'lucide-react'
 import { formatDate, cn } from '@/lib/utils'
+
+function getNextSlot(): { date: string; time: string } {
+  const now = new Date()
+  // Round up to next 5-minute slot
+  const mins = now.getMinutes()
+  const next5 = Math.ceil((mins + 1) / 5) * 5
+  now.setMinutes(next5, 0, 0)
+  if (next5 >= 60) now.setHours(now.getHours() + 1, next5 - 60, 0, 0)
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yy = String(now.getFullYear()).slice(-2)
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mi = String(now.getMinutes()).padStart(2, '0')
+  return { date: `${dd}/${mm}/${yy}`, time: `${hh}:${mi}` }
+}
+
+function parseScheduleToISO(date: string, time: string): string | null {
+  // date = dd/mm/yy, time = HH:mm
+  const parts = date.split('/')
+  if (parts.length !== 3) return null
+  const [dd, mm, yy] = parts
+  const fullYear = 2000 + parseInt(yy)
+  const d = new Date(fullYear, parseInt(mm) - 1, parseInt(dd), ...time.split(':').map(Number) as [number, number])
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
 
 const STATUSES = ['ALL', 'DRAFT', 'RUNNING', 'PAUSED', 'COMPLETED', 'SCHEDULED'] as const
 type CampaignStatus = (typeof STATUSES)[number]
@@ -63,8 +90,11 @@ function CreateCampaignDialog() {
   const [description, setDescription] = useState('')
   const [agentId, setAgentId] = useState('')
   const [selectedContacts, setSelectedContacts] = useState<string[]>([])
-  const [scheduleMode, setScheduleMode] = useState<'immediate' | 'scheduled'>('immediate')
-  const [scheduledAt, setScheduledAt] = useState('')
+  const [contactMode, setContactMode] = useState<'group' | 'individual'>('group')
+  const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [scheduleMode, setScheduleMode] = useState<'immediate' | 'scheduled' | 'draft'>('immediate')
+  const [schedDate, setSchedDate] = useState('')
+  const [schedTime, setSchedTime] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [maxRetries, setMaxRetries] = useState(3)
   const [retryDelayMinutes, setRetryDelayMinutes] = useState(60)
@@ -77,6 +107,12 @@ function CreateCampaignDialog() {
     enabled: open,
   })
 
+  const { data: groupsRaw = [] } = useQuery({
+    queryKey: ['client-contact-groups'],
+    queryFn: () => fetch('/api/client/contact-groups').then((r) => r.json()),
+    enabled: open,
+  })
+
   const { data: contactsRaw = [] } = useQuery({
     queryKey: ['client-contacts'],
     queryFn: () => fetch('/api/client/contacts').then((r) => r.json()),
@@ -85,6 +121,7 @@ function CreateCampaignDialog() {
 
   const contacts: any[] = Array.isArray(contactsRaw) ? contactsRaw : []
   const agentList: any[] = Array.isArray(agents) ? agents : []
+  const groups: any[] = Array.isArray(groupsRaw) ? groupsRaw : []
 
   const filteredContacts = contacts.filter(
     (c: any) =>
@@ -115,8 +152,11 @@ function CreateCampaignDialog() {
     setDescription('')
     setAgentId('')
     setSelectedContacts([])
+    setContactMode('group')
+    setSelectedGroupId('')
     setScheduleMode('immediate')
-    setScheduledAt('')
+    setSchedDate('')
+    setSchedTime('')
     setShowAdvanced(false)
     setMaxRetries(3)
     setRetryDelayMinutes(60)
@@ -124,19 +164,38 @@ function CreateCampaignDialog() {
     setContactSearch('')
   }
 
+  // Get contactIds from the selected group
+  const selectedGroup = groups.find((g: any) => g.id === selectedGroupId)
+  const groupContactIds: string[] = selectedGroup?.contactIds ?? []
+
+  function handleGroupSelect(groupId: string) {
+    setSelectedGroupId(groupId)
+    const group = groups.find((g: any) => g.id === groupId)
+    if (group && !name.trim()) {
+      setName(group.name)
+    }
+  }
+
   function handleSubmit() {
-    if (!name.trim() || !agentId || selectedContacts.length === 0) return
+    const contactIds = contactMode === 'group' && groupContactIds.length > 0
+      ? groupContactIds
+      : selectedContacts
+    if (!name.trim() || !agentId || contactIds.length === 0) return
+    if (scheduleMode === 'scheduled' && (!schedDate || !schedTime)) return
     const body: any = {
       name: name.trim(),
       agentId,
-      contactIds: selectedContacts,
+      contactIds,
       maxRetries,
       retryDelayMinutes,
       callsPerMinute,
     }
     if (description.trim()) body.description = description.trim()
-    if (scheduleMode === 'scheduled' && scheduledAt) {
-      body.scheduledAt = new Date(scheduledAt).toISOString()
+    if (scheduleMode === 'immediate') {
+      body.autoStart = true
+    } else if (scheduleMode === 'scheduled' && schedDate && schedTime) {
+      const iso = parseScheduleToISO(schedDate, schedTime)
+      if (iso) body.scheduledAt = iso
     }
     createMutation.mutate(body)
   }
@@ -157,7 +216,10 @@ function CreateCampaignDialog() {
 
   const deselectAll = () => setSelectedContacts([])
 
-  const canSubmit = name.trim() && agentId && selectedContacts.length > 0
+  const effectiveContactCount = contactMode === 'group'
+    ? groupContactIds.length
+    : selectedContacts.length
+  const canSubmit = name.trim() && agentId && effectiveContactCount > 0
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
@@ -174,7 +236,164 @@ function CreateCampaignDialog() {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Campaign Name */}
+          {/* Agent Selection — moved first for better flow */}
+          <div className="space-y-1.5">
+            <Label htmlFor="campaign-agent">
+              <Bot className="w-3.5 h-3.5 inline mr-1" />
+              Agent *
+            </Label>
+            <select
+              id="campaign-agent"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+            >
+              <option value="">Select an agent...</option>
+              {agentList
+                .filter((a: any) => a.isActive !== false)
+                .map((a: any) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <Separator />
+
+          {/* Contact Selection — group or individual mode */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>
+                <Users className="w-3.5 h-3.5 inline mr-1" />
+                Contacts * ({effectiveContactCount} selected)
+              </Label>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  variant={contactMode === 'group' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs h-6 px-2"
+                  onClick={() => setContactMode('group')}
+                >
+                  <FolderOpen className="w-3 h-3 mr-1" />
+                  By Group
+                </Button>
+                <Button
+                  type="button"
+                  variant={contactMode === 'individual' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs h-6 px-2"
+                  onClick={() => setContactMode('individual')}
+                >
+                  <UserPlus className="w-3 h-3 mr-1" />
+                  Individual
+                </Button>
+              </div>
+            </div>
+
+            {contactMode === 'group' ? (
+              <div className="space-y-2">
+                {groups.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-border rounded-md">
+                    <FolderOpen className="w-6 h-6 mx-auto mb-2 text-muted-foreground opacity-40" />
+                    <p className="text-xs text-muted-foreground">
+                      No contact groups yet. Import contacts via CSV or Google Sheets to auto-create groups.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs mt-2"
+                      onClick={() => setContactMode('individual')}
+                    >
+                      Select contacts individually instead
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-md max-h-48 overflow-y-auto">
+                    {groups.map((group: any) => {
+                      const isSelected = selectedGroupId === group.id
+                      const memberCount = group._count?.members ?? 0
+                      return (
+                        <button
+                          type="button"
+                          key={group.id}
+                          onClick={() => handleGroupSelect(group.id)}
+                          className={cn(
+                            'w-full flex items-center justify-between px-3 py-2.5 text-left border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors',
+                            isSelected && 'bg-primary/5 border-l-2 border-l-primary'
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{group.name}</p>
+                            {group.description && (
+                              <p className="text-[11px] text-muted-foreground truncate">{group.description}</p>
+                            )}
+                          </div>
+                          <Badge variant={isSelected ? 'default' : 'secondary'} className="text-[10px] ml-2 shrink-0">
+                            {memberCount} contacts
+                          </Badge>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                {selectedGroupId && groupContactIds.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    All {groupContactIds.length} contacts from this group will be called.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex gap-1 justify-end">
+                  <Button type="button" variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={selectAllVisible}>
+                    Select all
+                  </Button>
+                  {selectedContacts.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={deselectAll}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  placeholder="Search contacts..."
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  className="h-8 text-xs"
+                />
+                <div className="border border-border rounded-md max-h-40 overflow-y-auto">
+                  {filteredContacts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3 text-center">No contacts found</p>
+                  ) : (
+                    filteredContacts.map((c: any) => (
+                      <label
+                        key={c.id}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-muted/50 border-b border-border last:border-b-0',
+                          selectedContacts.includes(c.id) && 'bg-primary/5'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedContacts.includes(c.id)}
+                          onChange={() => toggleContact(c.id)}
+                          className="rounded border-border"
+                        />
+                        <span className="font-medium">{c.name || c.phoneNumber}</span>
+                        <span className="text-muted-foreground ml-auto">{c.phoneNumber}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Campaign Name — auto-filled from group, editable */}
           <div className="space-y-1.5">
             <Label htmlFor="campaign-name">Campaign Name *</Label>
             <Input
@@ -200,81 +419,6 @@ function CreateCampaignDialog() {
 
           <Separator />
 
-          {/* Agent Selection */}
-          <div className="space-y-1.5">
-            <Label htmlFor="campaign-agent">
-              <Bot className="w-3.5 h-3.5 inline mr-1" />
-              Agent *
-            </Label>
-            <select
-              id="campaign-agent"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-            >
-              <option value="">Select an agent...</option>
-              {agentList
-                .filter((a: any) => a.isActive !== false)
-                .map((a: any) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Contact Selection */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>
-                <Users className="w-3.5 h-3.5 inline mr-1" />
-                Contacts * ({selectedContacts.length} selected)
-              </Label>
-              <div className="flex gap-1">
-                <Button type="button" variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={selectAllVisible}>
-                  Select all
-                </Button>
-                {selectedContacts.length > 0 && (
-                  <Button type="button" variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={deselectAll}>
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-            <Input
-              placeholder="Search contacts..."
-              value={contactSearch}
-              onChange={(e) => setContactSearch(e.target.value)}
-              className="h-8 text-xs"
-            />
-            <div className="border border-border rounded-md max-h-40 overflow-y-auto">
-              {filteredContacts.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-3 text-center">No contacts found</p>
-              ) : (
-                filteredContacts.map((c: any) => (
-                  <label
-                    key={c.id}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-muted/50 border-b border-border last:border-b-0',
-                      selectedContacts.includes(c.id) && 'bg-primary/5'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedContacts.includes(c.id)}
-                      onChange={() => toggleContact(c.id)}
-                      className="rounded border-border"
-                    />
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-muted-foreground ml-auto">{c.phoneNumber}</span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
           {/* Schedule */}
           <div className="space-y-2">
             <Label>
@@ -289,6 +433,7 @@ function CreateCampaignDialog() {
                 className="text-xs"
                 onClick={() => setScheduleMode('immediate')}
               >
+                <Play className="w-3 h-3 mr-1" />
                 Start immediately
               </Button>
               <Button
@@ -296,19 +441,49 @@ function CreateCampaignDialog() {
                 variant={scheduleMode === 'scheduled' ? 'default' : 'outline'}
                 size="sm"
                 className="text-xs"
-                onClick={() => setScheduleMode('scheduled')}
+                onClick={() => {
+                  setScheduleMode('scheduled')
+                  if (!schedDate || !schedTime) {
+                    const slot = getNextSlot()
+                    setSchedDate(slot.date)
+                    setSchedTime(slot.time)
+                  }
+                }}
               >
                 <Clock className="w-3 h-3 mr-1" />
                 Schedule for later
               </Button>
+              <Button
+                type="button"
+                variant={scheduleMode === 'draft' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs"
+                onClick={() => setScheduleMode('draft')}
+              >
+                Save as Draft
+              </Button>
             </div>
             {scheduleMode === 'scheduled' && (
-              <Input
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="text-xs"
-              />
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">Date (dd/mm/yy)</Label>
+                  <Input
+                    placeholder="dd/mm/yy"
+                    value={schedDate}
+                    onChange={(e) => setSchedDate(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">Time</Label>
+                  <Input
+                    type="time"
+                    value={schedTime}
+                    onChange={(e) => setSchedTime(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
             )}
           </div>
 
@@ -368,8 +543,14 @@ function CreateCampaignDialog() {
           <Button variant="outline" onClick={() => { setOpen(false); resetForm() }}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending}>
-            {createMutation.isPending ? 'Creating...' : 'Create Campaign'}
+          <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending || (scheduleMode === 'scheduled' && (!schedDate || !schedTime))}>
+            {createMutation.isPending
+              ? 'Creating...'
+              : scheduleMode === 'immediate'
+              ? 'Create & Start'
+              : scheduleMode === 'scheduled'
+              ? 'Schedule Campaign'
+              : 'Save as Draft'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -592,7 +773,7 @@ export default function ClientCampaignsPage() {
                         {campaign.status === 'SCHEDULED' && campaign.scheduledAt && (
                           <span className="flex items-center gap-1 text-blue-500">
                             <Calendar className="w-3 h-3" />
-                            Scheduled: {formatDate(campaign.scheduledAt)}
+                            Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} {new Date(campaign.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </span>
                         )}
                       </div>

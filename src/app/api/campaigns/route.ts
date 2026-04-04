@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listCampaigns, createCampaign } from '@/lib/services/campaign-service'
+import { processScheduledCampaigns } from '@/lib/services/scheduled-campaign-service'
 import { requireAuth } from '@/lib/auth-utils'
 import { z } from 'zod'
 
@@ -9,6 +10,7 @@ const campaignSchema = z.object({
   agentId: z.string(),
   contactIds: z.array(z.string()),
   scheduledAt: z.string().datetime().optional(),
+  autoStart: z.boolean().optional(),
   maxRetries: z.number().int().min(0).max(10).default(3),
   retryDelayMinutes: z.number().int().min(1).max(1440).default(60),
   callsPerMinute: z.number().int().min(1).max(60).default(5),
@@ -19,6 +21,9 @@ export async function GET(req: NextRequest) {
     const user = await requireAuth()
     if (user instanceof NextResponse) return user
     const userId = user.role === 'admin' ? user.id : user.adminUserId!
+
+    // Auto-start any scheduled campaigns whose time has passed
+    processScheduledCampaigns().catch((err) => console.error('Scheduled campaign check failed:', err))
 
     const { searchParams } = new URL(req.url)
     const result = await listCampaigns(userId, {

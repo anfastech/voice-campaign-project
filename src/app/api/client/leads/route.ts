@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
 
 const createLeadSchema = z.object({
   contactId: z.string().min(1),
+  agentId: z.string().optional(),
+  callId: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
 
     const body = await req.json()
-    const { contactId, notes } = createLeadSchema.parse(body)
+    const { contactId, agentId, callId, notes } = createLeadSchema.parse(body)
 
     // Verify the contact belongs to the admin
     const contact = await prisma.contact.findFirst({
@@ -64,6 +66,8 @@ export async function POST(req: NextRequest) {
     const lead = await prisma.lead.create({
       data: {
         contactId,
+        agentId,
+        callId,
         notes,
         tags: [],
         userId: client.userId,

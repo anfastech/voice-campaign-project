@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
     const text = await file.text()
     const { data } = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true })
 
-    const result = await importContacts(userId, data)
+    // Use filename without extension as the group name
+    const fileName = file.name?.replace(/\.[^.]+$/, '') || `CSV Import ${new Date().toLocaleDateString('en-GB')}`
+    const result = await importContacts(userId, data, { sourceName: fileName, sourceType: 'csv' })
     return NextResponse.json(result)
   } catch (error) {
     console.error('CSV import error:', error)

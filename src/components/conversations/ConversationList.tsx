@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface Conversation {
   id: string
+  contactId: string | null
   contactName: string | null
   phoneNumber: string
+  agentId: string | null
   conversationId: string
   date: string
   status: string
@@ -52,6 +54,7 @@ export function ConversationList({
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="FAILED">Failed</SelectItem>
               <SelectItem value="NO_ANSWER">No Answer</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filters.period} onValueChange={(v) => onFiltersChange({ period: v })}>

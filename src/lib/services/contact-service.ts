@@ -133,7 +133,11 @@ export async function unassignContactsFromAgent(contactIds: string[], agentId: s
   })
 }
 
-export async function importContacts(userId: string, csvData: Array<Record<string, string>>) {
+export async function importContacts(
+  userId: string,
+  csvData: Array<Record<string, string>>,
+  options?: { sourceName?: string; sourceType?: 'csv' | 'gsheet' }
+) {
   const results = await Promise.allSettled(
     csvData.map(async (row) => {
       const phoneNumber = (
@@ -160,10 +164,33 @@ export async function importContacts(userId: string, csvData: Array<Record<strin
     })
   )
 
-  const imported = results.filter(
-    (r) => r.status === 'fulfilled' && r.value !== null
-  ).length
+  const importedContacts = results
+    .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value !== null)
+    .map((r) => r.value)
+  const imported = importedContacts.length
   const failed = results.filter((r) => r.status === 'rejected').length
 
-  return { imported, failed, total: csvData.length }
+  // Auto-create a contact group for this import batch
+  let groupId: string | undefined
+  if (imported > 0 && options?.sourceName) {
+    const groupName = options.sourceName
+    try {
+      const group = await prisma.contactGroup.upsert({
+        where: { userId_name: { userId, name: groupName } },
+        update: {},
+        create: { name: groupName, description: `Imported from ${options.sourceType === 'gsheet' ? 'Google Sheets' : 'CSV'} on ${new Date().toLocaleDateString('en-GB')}`, userId },
+      })
+      groupId = group.id
+
+      // Add imported contacts to the group
+      await prisma.contactGroupMember.createMany({
+        data: importedContacts.map((c: any) => ({ contactId: c.id, groupId: group.id })),
+        skipDuplicates: true,
+      })
+    } catch (err) {
+      console.error('Failed to create import group:', err)
+    }
+  }
+
+  return { imported, failed, total: csvData.length, groupId }
 }

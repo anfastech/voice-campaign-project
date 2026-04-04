@@ -11,17 +11,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     staleTime: 60_000,
   })
 
-  const cssVars = {
-    ...(branding?.primaryColor ? { '--primary': branding.primaryColor, '--sidebar-primary': branding.primaryColor } : {}),
-    ...(branding?.accentColor ? { '--accent': branding.accentColor, '--sidebar-accent': branding.accentColor } : {}),
+  const contentVars = {
+    ...(branding?.primaryColor ? { '--primary': branding.primaryColor } : {}),
+    ...(branding?.accentColor ? { '--accent': branding.accentColor } : {}),
   } as React.CSSProperties
 
   return (
-    <div className="flex min-h-screen bg-background" style={cssVars}>
+    <div className="flex min-h-screen bg-background">
       <AdminSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto" style={contentVars}>
           {children}
         </main>
       </div>

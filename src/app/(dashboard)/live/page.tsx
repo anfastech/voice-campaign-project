@@ -8,48 +8,21 @@ import {
 import { formatDuration, formatPhoneNumber } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType }> = {
-  IN_PROGRESS: { label: 'In Progress', variant: 'default', icon: PhoneCall },
-  RINGING: { label: 'Ringing', variant: 'secondary', icon: Phone },
-  INITIATED: { label: 'Initiated', variant: 'secondary', icon: Phone },
-  COMPLETED: { label: 'Completed', variant: 'default', icon: CheckCircle2 },
-  FAILED: { label: 'Failed', variant: 'destructive', icon: XCircle },
-  NO_ANSWER: { label: 'No Answer', variant: 'outline', icon: PhoneMissed },
-  BUSY: { label: 'Busy', variant: 'outline', icon: PhoneOff },
+const statusStyles: Record<string, { label: string; className: string }> = {
+  IN_PROGRESS: { label: 'In Progress', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+  RINGING: { label: 'Ringing', className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' },
+  INITIATED: { label: 'Initiated', className: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
+  COMPLETED: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+  FAILED: { label: 'Failed', className: 'bg-red-500/10 text-red-700 dark:text-red-400' },
+  NO_ANSWER: { label: 'No Answer', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+  BUSY: { label: 'Busy', className: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status] || { label: status, variant: 'secondary' as const, icon: Phone }
-  const isLive = ['IN_PROGRESS', 'RINGING'].includes(status)
-
-  return (
-    <Badge variant={cfg.variant} className="gap-1.5 text-xs">
-      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
-      {cfg.label}
-    </Badge>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, colorClass }: {
-  icon: React.ElementType
-  label: string
-  value: number | string
-  colorClass: string
-}) {
-  return (
-    <Card className="shadow-none">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}>
-          <Icon className="w-4.5 h-4.5" />
-        </div>
-        <div>
-          <p className="text-xl font-bold tabular-nums leading-tight text-foreground">{value}</p>
-          <p className="text-[11px] text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
+const statusIcons: Record<string, React.ElementType> = {
+  IN_PROGRESS: PhoneCall, RINGING: Phone, INITIATED: Phone,
+  COMPLETED: CheckCircle2, FAILED: XCircle, NO_ANSWER: PhoneMissed, BUSY: PhoneOff,
 }
 
 export default function LiveMonitorPage() {
@@ -79,147 +52,158 @@ export default function LiveMonitorPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-            <Radio className="w-5 h-5 text-emerald-600" />
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground">Live Monitor</h2>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-foreground">Live Monitor</h2>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Auto-refreshing every 3s · Last update: {lastUpdate}
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Auto-refreshing every 3s · Last update: {lastUpdate}
+          </p>
         </div>
-        <Badge variant="outline" className="gap-1.5 text-emerald-600 border-emerald-200">
+        <Badge variant="outline" className="gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800">
           <Wifi className="w-3 h-3" /> Connected
         </Badge>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={PhoneCall} label="Active Calls" value={activeCalls.length} colorClass="bg-emerald-500/10 text-emerald-600" />
-        <StatCard icon={Megaphone} label="Running Campaigns" value={runningCampaigns.length} colorClass="bg-purple-500/10 text-purple-600" />
-        <StatCard icon={Users} label="Queued Contacts" value={queuedContacts} colorClass="bg-blue-500/10 text-blue-600" />
-        <StatCard icon={Activity} label="Recent (5min)" value={recentCalls.length} colorClass="bg-amber-500/10 text-amber-600" />
+        {[
+          { label: 'Active Calls', value: activeCalls.length, icon: PhoneCall },
+          { label: 'Running Campaigns', value: runningCampaigns.length, icon: Megaphone },
+          { label: 'Queued Contacts', value: queuedContacts, icon: Users },
+          { label: 'Recent (5min)', value: recentCalls.length, icon: Activity },
+        ].map((stat) => {
+          const Icon = stat.icon
+          return (
+            <Card key={stat.label} className="shadow-none">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <Icon className="w-4 h-4 text-muted-foreground/60" />
+                </div>
+                <p className="text-2xl font-bold tabular-nums text-foreground">{stat.value}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Active Calls */}
       <Card className="shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-            </div>
-            <div>
-              <CardTitle className="text-sm">Active Calls</CardTitle>
-              <p className="text-[11px] text-muted-foreground">
-                {activeCalls.length} call{activeCalls.length !== 1 ? 's' : ''} in progress
-              </p>
-            </div>
+        <CardHeader className="pb-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Active Calls</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {activeCalls.length} call{activeCalls.length !== 1 ? 's' : ''} in progress
+            </p>
           </div>
-          <span className={`w-2 h-2 rounded-full ${activeCalls.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'}`} />
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-4">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-14 rounded-lg animate-pulse bg-muted" />
+                <div key={i} className="h-16 rounded-lg animate-pulse bg-muted" />
               ))}
             </div>
           ) : activeCalls.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
-                <Phone className="w-5 h-5 text-muted-foreground" />
-              </div>
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <Phone className="w-8 h-8 text-muted-foreground/20 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">No active calls</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Active calls will appear here in real-time</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Active calls will appear here in real-time</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {activeCalls.map((call: any) => {
-                const elapsed = call.startedAt ? Math.floor((Date.now() - new Date(call.startedAt).getTime()) / 1000) : 0
-                return (
-                  <div key={call.id} className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
-                      <PhoneCall className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate text-foreground">
-                          {call.contact?.name || formatPhoneNumber(call.phoneNumber)}
-                        </p>
-                        <StatusBadge status={call.status} />
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        {call.agent && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Bot className="w-3 h-3" /> {call.agent.name}
+            <div className="rounded-lg border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left font-medium text-muted-foreground px-4 py-2.5">Contact</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-2.5">Status</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-2.5">Agent</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-2.5">Campaign</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-2.5">Elapsed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCalls.map((call: any) => {
+                    const elapsed = call.startedAt ? Math.floor((Date.now() - new Date(call.startedAt).getTime()) / 1000) : 0
+                    const cfg = statusStyles[call.status] || statusStyles.INITIATED
+                    return (
+                      <tr key={call.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-foreground">{call.contact?.name || formatPhoneNumber(call.phoneNumber)}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${cfg.className}`}>
+                            {['IN_PROGRESS', 'RINGING'].includes(call.status) && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                            )}
+                            {cfg.label}
                           </span>
-                        )}
-                        {call.campaign && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Megaphone className="w-3 h-3" /> {call.campaign.name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold tabular-nums text-emerald-600">{formatDuration(elapsed)}</p>
-                      <p className="text-[10px] text-muted-foreground">elapsed</p>
-                    </div>
-                  </div>
-                )
-              })}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {call.agent ? (
+                            <span className="flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />{call.agent.name}</span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {call.campaign ? (
+                            <span className="flex items-center gap-1.5"><Megaphone className="w-3.5 h-3.5" />{call.campaign.name}</span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-semibold tabular-nums text-foreground">{formatDuration(elapsed)}</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Running Campaigns + Recent Calls */}
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-4">
         {/* Running Campaigns */}
         <Card className="shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Megaphone className="w-3.5 h-3.5 text-purple-600" />
-              </div>
-              <CardTitle className="text-sm">Running Campaigns</CardTitle>
+          <CardHeader className="pb-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Running Campaigns</CardTitle>
+              <Badge variant="secondary" className="text-xs tabular-nums">{runningCampaigns.length}</Badge>
             </div>
-            <Badge variant="secondary" className="text-xs">{runningCampaigns.length}</Badge>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-4">
             {runningCampaigns.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10">
-                <Megaphone className="w-6 h-6 text-muted-foreground/30 mb-2" />
-                <p className="text-xs text-muted-foreground">No campaigns running</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Megaphone className="w-8 h-8 text-muted-foreground/20 mb-3" />
+                <p className="text-sm text-muted-foreground">No campaigns running</p>
               </div>
             ) : (
-              <div className="divide-y divide-border">
+              <div className="space-y-4">
                 {runningCampaigns.map((campaign: any) => {
                   const progress = campaign._count.contacts > 0
                     ? Math.round((campaign.completedCalls / campaign._count.contacts) * 100)
                     : 0
                   return (
-                    <div key={campaign.id} className="py-3.5 first:pt-0 last:pb-0">
+                    <div key={campaign.id}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-sm font-medium truncate text-foreground">{campaign.name}</p>
-                        <span className="text-xs font-semibold tabular-nums text-purple-600">{progress}%</span>
+                        <p className="text-sm font-medium text-foreground truncate">{campaign.name}</p>
+                        <span className="text-xs font-medium tabular-nums text-muted-foreground">{progress}%</span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-1.5">
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-2">
                         <div
-                          className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                          className="h-full rounded-full bg-primary transition-all duration-500"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{campaign._count.calls} calls</span>
                         <span>{campaign._count.contacts} contacts</span>
-                        {campaign.agent && <span>Agent: {campaign.agent.name}</span>}
+                        {campaign.agent && <span>{campaign.agent.name}</span>}
                       </div>
+                      <Separator className="mt-4 last:hidden" />
                     </div>
                   )
                 })}
@@ -230,50 +214,38 @@ export default function LiveMonitorPage() {
 
         {/* Recent Calls */}
         <Card className="shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-              </div>
-              <CardTitle className="text-sm">Recent Calls</CardTitle>
+          <CardHeader className="pb-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Recent Calls</CardTitle>
+              <span className="text-xs text-muted-foreground">Last 5 min</span>
             </div>
-            <span className="text-xs text-muted-foreground">Last 5 min</span>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-4">
             {recentCalls.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10">
-                <Phone className="w-6 h-6 text-muted-foreground/30 mb-2" />
-                <p className="text-xs text-muted-foreground">No recent calls</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Clock className="w-8 h-8 text-muted-foreground/20 mb-3" />
+                <p className="text-sm text-muted-foreground">No recent calls</p>
               </div>
             ) : (
-              <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                {recentCalls.map((call: any) => (
-                  <div key={call.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      call.status === 'COMPLETED' ? 'bg-emerald-500/10' :
-                      call.status === 'FAILED' ? 'bg-red-500/10' :
-                      call.status === 'NO_ANSWER' ? 'bg-amber-500/10' : 'bg-muted'
-                    }`}>
-                      {(() => {
-                        const Icon = statusConfig[call.status]?.icon || Phone
-                        return <Icon className={`w-3.5 h-3.5 ${
-                          call.status === 'COMPLETED' ? 'text-emerald-600' :
-                          call.status === 'FAILED' ? 'text-red-600' :
-                          call.status === 'NO_ANSWER' ? 'text-amber-600' : 'text-muted-foreground'
-                        }`} />
-                      })()}
+              <div className="max-h-80 overflow-y-auto space-y-1">
+                {recentCalls.map((call: any) => {
+                  const cfg = statusStyles[call.status] || statusStyles.INITIATED
+                  return (
+                    <div key={call.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-foreground">
+                          {call.contact?.name || call.contact?.phoneNumber || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {call.agent?.name}{call.duration ? ` · ${formatDuration(call.duration)}` : ''}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium shrink-0 ${cfg.className}`}>
+                        {cfg.label}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate text-foreground">
-                        {call.contact?.name || call.contact?.phoneNumber || 'Unknown'}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {call.agent?.name} · {call.duration ? formatDuration(call.duration) : '—'}
-                      </p>
-                    </div>
-                    <StatusBadge status={call.status} />
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

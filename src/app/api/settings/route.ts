@@ -16,7 +16,7 @@ export async function GET() {
     const integrations = {
       voiceEngine: { connected: Boolean(process.env.ELEVENLABS_API_KEY) },
       aiModel: { connected: Boolean(process.env.ANTHROPIC_API_KEY) },
-      telephony: { connected: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) },
+      telephony: { connected: Boolean(process.env.ELEVENLABS_PHONE_NUMBER_ID) },
     }
 
     return NextResponse.json({

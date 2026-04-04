@@ -336,16 +336,18 @@ export default function AgentDetailPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total Calls', value: a._count?.calls ?? 0, icon: Phone, colorClass: 'text-purple-600' },
-          { label: 'Campaigns', value: a._count?.campaigns ?? 0, icon: Sparkles, colorClass: 'text-fuchsia-500' },
-          { label: 'Temperature', value: a.temperature, icon: Thermometer, colorClass: 'text-amber-500' },
-          { label: 'Max Duration', value: formatDuration(a.maxDuration), icon: Clock, colorClass: 'text-emerald-500' },
-        ].map(({ label, value, icon: Icon, colorClass }) => (
-          <Card key={label} className="rounded-2xl py-4 gap-0">
-            <CardContent className="flex flex-col items-center justify-center text-center p-0 px-4">
-              <Icon className={`w-4 h-4 mb-2 ${colorClass}`} />
-              <p className="text-lg font-bold text-foreground">{value}</p>
-              <p className="text-[10px] mt-0.5 text-muted-foreground">{label}</p>
+          { label: 'Total Calls', value: a._count?.calls ?? 0, icon: Phone },
+          { label: 'Campaigns', value: a._count?.campaigns ?? 0, icon: Sparkles },
+          { label: 'Temperature', value: a.temperature, icon: Thermometer },
+          { label: 'Max Duration', value: formatDuration(a.maxDuration), icon: Clock },
+        ].map(({ label, value, icon: Icon }) => (
+          <Card key={label} className="shadow-none">
+            <CardContent className="pt-5 pb-4 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <Icon className="w-4 h-4 text-muted-foreground/60" />
+              </div>
+              <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
             </CardContent>
           </Card>
         ))}
@@ -354,10 +356,8 @@ export default function AgentDetailPage() {
       {/* System Prompt -- hero section */}
       <Card className="rounded-2xl py-0 gap-0 border-2 border-primary/35 shadow-[0_0_0_4px] shadow-primary/5">
         <CardHeader className="px-5 pt-5 pb-0 gap-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/15">
-              <Mic2 className="w-3.5 h-3.5 text-primary" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Mic2 className="w-4 h-4 text-muted-foreground" />
             <CardTitle className="text-sm">System Prompt</CardTitle>
           </div>
         </CardHeader>
@@ -376,10 +376,8 @@ export default function AgentDetailPage() {
       {/* Config Card */}
       <Card className="rounded-2xl py-0 gap-0">
         <CardHeader className="px-5 pt-5 pb-0 gap-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10">
-              <Bot className="w-3.5 h-3.5 text-primary" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-muted-foreground" />
             <CardTitle className="text-sm">Configuration</CardTitle>
           </div>
         </CardHeader>
@@ -410,12 +408,12 @@ export default function AgentDetailPage() {
                 {a.elevenLabsAgentId ? 'Deployed' : 'Not deployed'}
               </p>
               {a.elevenLabsAgentId && (
-                <p className="text-[10px] font-mono truncate text-emerald-600/70">
+                <p className="text-xs font-mono truncate text-emerald-600/70">
                   {a.elevenLabsAgentId}
                 </p>
               )}
               {syncMutation.isError && (
-                <p className="text-[10px] mt-1 text-red-600">
+                <p className="text-xs mt-1 text-red-600">
                   {syncMutation.error?.message || 'Sync failed'}
                 </p>
               )}
@@ -438,7 +436,7 @@ export default function AgentDetailPage() {
 
           {a.description && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-muted-foreground">
                 Description
               </p>
               <p className="text-sm text-foreground">{a.description}</p>
@@ -450,7 +448,7 @@ export default function AgentDetailPage() {
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <MessageSquare className="w-3 h-3 text-muted-foreground" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   First Message
                 </p>
               </div>
@@ -466,11 +464,9 @@ export default function AgentDetailPage() {
       <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
         <CardHeader className="px-5 py-4 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10 border border-blue-500/20">
-              <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-            </div>
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
             <CardTitle className="text-sm">Knowledge Base</CardTitle>
-            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+            <Badge variant="secondary" className="text-xs">
               {docs.length}
             </Badge>
           </div>
@@ -487,7 +483,7 @@ export default function AgentDetailPage() {
 
         {/* Add document inline form */}
         {kbFormOpen && (
-          <div className="px-5 py-4 space-y-3 bg-blue-500/5 border-b">
+          <div className="px-5 py-4 space-y-3 bg-muted/50 border-b">
             {/* Text / URL tab switcher */}
             <div className="flex gap-1 p-1 rounded-xl w-fit bg-muted">
               {(['TEXT', 'URL'] as const).map((tab) => {
@@ -594,11 +590,11 @@ export default function AgentDetailPage() {
                         <p className="text-sm font-medium truncate text-foreground">
                           {doc.name}
                         </p>
-                        <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+                        <Badge variant="secondary" className="text-xs font-semibold rounded-md">
                           {DOC_TYPE_LABELS[doc.type]}
                         </Badge>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {formatDate(doc.createdAt)}
                       </p>
                     </div>
@@ -624,11 +620,9 @@ export default function AgentDetailPage() {
       <Card className="rounded-2xl py-0 gap-0 overflow-hidden">
         <CardHeader className="px-5 py-4 gap-0 flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-fuchsia-500/10 border border-fuchsia-500/20">
-              <BarChart2 className="w-3.5 h-3.5 text-fuchsia-600" />
-            </div>
+            <BarChart2 className="w-4 h-4 text-muted-foreground" />
             <CardTitle className="text-sm">Campaigns</CardTitle>
-            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+            <Badge variant="secondary" className="text-xs">
               {agentCampaigns.length}
             </Badge>
           </div>
@@ -668,7 +662,7 @@ export default function AgentDetailPage() {
                           <p className="text-sm font-medium truncate text-foreground">
                             {campaign.name as string}
                           </p>
-                          <Badge variant="ghost" className={`text-[10px] font-bold rounded-md ${statusClass}`}>
+                          <Badge variant="ghost" className={`text-xs font-bold rounded-md ${statusClass}`}>
                             {campaign.status as string}
                           </Badge>
                         </div>
@@ -680,7 +674,7 @@ export default function AgentDetailPage() {
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
-                            <span className="text-[10px] flex-shrink-0 text-muted-foreground">
+                            <span className="text-xs flex-shrink-0 text-muted-foreground">
                               {calls}/{total}
                             </span>
                           </div>
@@ -702,7 +696,7 @@ export default function AgentDetailPage() {
           <div className="flex items-center gap-2">
             <Wrench className="w-4 h-4 text-muted-foreground" />
             <CardTitle className="text-sm">Custom Tools</CardTitle>
-            <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+            <Badge variant="secondary" className="text-xs font-semibold rounded-md">
               {tools.length}
             </Badge>
           </div>
@@ -719,10 +713,10 @@ export default function AgentDetailPage() {
 
         {/* Add tool form */}
         {toolFormOpen && (
-          <div className="px-5 py-4 space-y-3 bg-primary/5 border-b">
+          <div className="px-5 py-4 space-y-3 bg-muted/50 border-b">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
+                <Label className="text-xs font-semibold uppercase tracking-wider mb-1">
                   Name (snake_case)
                 </Label>
                 <Input
@@ -734,7 +728,7 @@ export default function AgentDetailPage() {
                 />
               </div>
               <div>
-                <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
+                <Label className="text-xs font-semibold uppercase tracking-wider mb-1">
                   Webhook URL (https://)
                 </Label>
                 <Input
@@ -747,7 +741,7 @@ export default function AgentDetailPage() {
               </div>
             </div>
             <div>
-              <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
+              <Label className="text-xs font-semibold uppercase tracking-wider mb-1">
                 Description
               </Label>
               <Input
@@ -759,7 +753,7 @@ export default function AgentDetailPage() {
               />
             </div>
             <div>
-              <Label className="text-[10px] font-semibold uppercase tracking-wider mb-1">
+              <Label className="text-xs font-semibold uppercase tracking-wider mb-1">
                 Parameters (JSON Schema)
               </Label>
               <Textarea
@@ -810,7 +804,7 @@ export default function AgentDetailPage() {
                         {tool.name}
                       </p>
                       {!tool.isActive && (
-                        <Badge variant="secondary" className="text-[10px] rounded-md">
+                        <Badge variant="secondary" className="text-xs rounded-md">
                           disabled
                         </Badge>
                       )}
@@ -818,7 +812,7 @@ export default function AgentDetailPage() {
                     <p className="text-xs mt-0.5 text-muted-foreground">
                       {tool.description}
                     </p>
-                    <p className="text-[10px] mt-0.5 font-mono truncate text-muted-foreground">
+                    <p className="text-xs mt-0.5 font-mono truncate text-muted-foreground">
                       {tool.webhookUrl}
                     </p>
                   </div>
@@ -827,7 +821,7 @@ export default function AgentDetailPage() {
                       variant="outline"
                       size="xs"
                       onClick={() => toggleToolMutation.mutate({ toolId: tool.id, isActive: !tool.isActive })}
-                      className={`text-[10px] font-medium ${
+                      className={`text-xs font-medium ${
                         tool.isActive
                           ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20'
                           : ''
@@ -876,7 +870,7 @@ export default function AgentDetailPage() {
                 {['Contact', 'Status', 'Duration', 'Date'].map((h) => (
                   <TableHead
                     key={h}
-                    className="px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    className="px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
                     {h}
                   </TableHead>
@@ -893,13 +887,13 @@ export default function AgentDetailPage() {
                         {(call.contact as Record<string, unknown>)?.name as string || call.phoneNumber as string}
                       </p>
                       {!!(call.contact as Record<string, unknown>)?.name && (
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {call.phoneNumber as string}
                         </p>
                       )}
                     </TableCell>
                     <TableCell className="px-5 py-3">
-                      <Badge variant="ghost" className={`text-[10px] font-bold rounded-lg ${sc.className}`}>
+                      <Badge variant="ghost" className={`text-xs font-bold rounded-lg ${sc.className}`}>
                         {sc.label}
                       </Badge>
                     </TableCell>
@@ -935,7 +929,7 @@ function InfoRow({
         <Icon className="w-3.5 h-3.5 text-muted-foreground" />
       </div>
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
         <p className="text-sm font-medium text-foreground">{value}</p>

@@ -5,10 +5,8 @@ import { getToken } from 'next-auth/jwt'
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Public routes — no auth needed
+  // Static/API routes — no auth needed
   if (
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/admin') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/_next') ||
@@ -22,6 +20,16 @@ export async function middleware(req: NextRequest) {
     req,
     secret: process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
   })
+
+  // Login pages — redirect to dashboard if already authenticated
+  if (pathname === '/login' || pathname === '/admin') {
+    if (token) {
+      const role = token.role as string
+      const dest = role === 'client' ? '/client/dashboard' : '/analytics'
+      return NextResponse.redirect(new URL(dest, req.url))
+    }
+    return NextResponse.next()
+  }
 
   // Not logged in → redirect to login
   if (!token) {

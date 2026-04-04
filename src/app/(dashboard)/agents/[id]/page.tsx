@@ -326,7 +326,7 @@ export default function AgentDetailPage() {
             variant="outline"
             size="icon"
             onClick={() => { if (confirm('Delete this agent?')) deleteMutation.mutate() }}
-            className="rounded-xl border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700"
+            className="rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -392,28 +392,24 @@ export default function AgentDetailPage() {
 
           {/* Agent Status */}
           <div
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${
-              a.elevenLabsAgentId
-                ? 'bg-emerald-500/10 border-emerald-500/20'
-                : 'bg-amber-500/10 border-amber-500/20'
-            }`}
+            className="flex items-center gap-3 rounded-xl px-4 py-3 border bg-muted/50"
           >
             {a.elevenLabsAgentId ? (
-              <Link2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+              <Link2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
             ) : (
-              <Link2Off className="w-4 h-4 flex-shrink-0 text-amber-600" />
+              <Link2Off className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
             )}
             <div className="min-w-0 flex-1">
-              <p className={`text-xs font-semibold ${a.elevenLabsAgentId ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <p className="text-xs font-semibold text-foreground">
                 {a.elevenLabsAgentId ? 'Deployed' : 'Not deployed'}
               </p>
               {a.elevenLabsAgentId && (
-                <p className="text-xs font-mono truncate text-emerald-600/70">
+                <p className="text-xs font-mono truncate text-muted-foreground">
                   {a.elevenLabsAgentId}
                 </p>
               )}
               {syncMutation.isError && (
-                <p className="text-xs mt-1 text-red-600">
+                <p className="text-xs mt-1 text-destructive">
                   {syncMutation.error?.message || 'Sync failed'}
                 </p>
               )}
@@ -421,13 +417,9 @@ export default function AgentDetailPage() {
             <Button
               onClick={() => syncMutation.mutate()}
               disabled={syncMutation.isPending}
-              variant="outline"
+              variant={a.elevenLabsAgentId ? 'outline' : 'default'}
               size="sm"
-              className={`flex-shrink-0 text-[11px] font-semibold ${
-                a.elevenLabsAgentId
-                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 hover:bg-emerald-500/20'
-                  : 'bg-amber-500/15 border-amber-500/30 text-amber-700 hover:bg-amber-500/25'
-              }`}
+              className="flex-shrink-0 text-xs"
             >
               <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
               {syncMutation.isPending ? 'Syncing...' : a.elevenLabsAgentId ? 'Re-sync' : 'Deploy Agent'}
@@ -452,7 +444,7 @@ export default function AgentDetailPage() {
                   First Message
                 </p>
               </div>
-              <div className="rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/20">
+              <div className="rounded-xl p-3 bg-muted border border-border">
                 <p className="text-sm italic text-foreground">&ldquo;{a.firstMessage}&rdquo;</p>
               </div>
             </div>
@@ -603,7 +595,7 @@ export default function AgentDetailPage() {
                       size="icon-xs"
                       onClick={() => deleteDocMutation.mutate(doc.id)}
                       disabled={deleteDocMutation.isPending}
-                      className="rounded-lg border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700 flex-shrink-0"
+                      className="rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -833,7 +825,7 @@ export default function AgentDetailPage() {
                       variant="outline"
                       size="icon-xs"
                       onClick={() => deleteToolMutation.mutate(tool.id)}
-                      className="rounded-lg border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-700"
+                      className="rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>

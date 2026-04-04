@@ -47,7 +47,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
 
   if (status === 'SYNCED') {
     return (
-      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-0 gap-1 text-[10px] font-semibold">
+      <Badge variant="default" className="gap-1 text-xs">
         <CheckCircle className="w-2.5 h-2.5" />
         Synced
       </Badge>
@@ -58,7 +58,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
     return (
       <div className="flex flex-col items-end gap-1">
         <div className="flex items-center gap-1.5">
-          <Badge variant="secondary" className="bg-red-500/10 text-red-600 border-0 gap-1 text-[10px] font-semibold cursor-default">
+          <Badge variant="destructive" className="gap-1 text-xs cursor-default">
             <XCircle className="w-2.5 h-2.5" />
             Sync Failed
           </Badge>
@@ -69,7 +69,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
               onClick={onRetry}
               disabled={retrying}
               title="Retry sync"
-              className="w-6 h-6 rounded-lg bg-sky-500/10 border-sky-500/25 text-sky-600 hover:bg-sky-500/20"
+              className="w-6 h-6 rounded-lg bg-muted border-border text-muted-foreground hover:bg-accent"
             >
               {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
             </Button>
@@ -89,7 +89,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
   // PENDING
   return (
     <div className="flex items-center gap-1.5">
-      <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 gap-1 text-[10px] font-semibold">
+      <Badge variant="secondary" className="gap-1 text-xs">
         <Clock className="w-2.5 h-2.5" />
         Pending
       </Badge>
@@ -100,7 +100,7 @@ function SyncBadge({ doc, onRetry, retrying }: { doc: KBDoc; onRetry: () => void
           onClick={onRetry}
           disabled={retrying}
           title="Retry sync"
-          className="w-6 h-6 rounded-lg bg-sky-500/10 border-sky-500/25 text-sky-600 hover:bg-sky-500/20"
+          className="w-6 h-6 rounded-lg bg-muted border-border text-muted-foreground hover:bg-accent"
         >
           {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
         </Button>
@@ -237,9 +237,6 @@ export default function KnowledgeBasePage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-sky-500/10 border border-sky-500/20">
-            <BookOpen className="w-4 h-4 text-sky-600" />
-          </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">Knowledge Base</h1>
             <p className="text-xs text-muted-foreground">
@@ -464,12 +461,12 @@ export default function KnowledgeBasePage() {
                         {doc.name}
                       </p>
                       {doc.folderName && (
-                        <Badge variant="secondary" className="bg-sky-500/10 text-sky-600 border-sky-500/20 text-[10px] font-medium">
+                        <Badge variant="secondary" className="text-xs">
                           {doc.folderName}
                         </Badge>
                       )}
                       {agentName && (
-                        <Badge variant="secondary" className="bg-violet-500/10 text-violet-600 border-violet-500/20 text-[10px] font-medium gap-1">
+                        <Badge variant="outline" className="text-xs gap-1">
                           <Bot className="w-2.5 h-2.5" />
                           {agentName}
                         </Badge>
@@ -492,7 +489,7 @@ export default function KnowledgeBasePage() {
                       size="icon"
                       onClick={() => deleteMutation.mutate(doc.id)}
                       disabled={deleteMutation.isPending}
-                      className="w-7 h-7 rounded-lg bg-red-500/5 border-red-500/20 text-red-500 hover:bg-red-500/15 hover:text-red-600"
+                      className="w-7 h-7 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>

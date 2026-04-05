@@ -21,32 +21,36 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    // Try admin login first, then client login
-    const adminResult = await signIn('admin-login', {
-      email,
-      password,
-      redirect: false,
-    })
+    try {
+      // Try admin login first
+      const adminResult = await Promise.race([
+        signIn('admin-login', { email, password, redirect: false }),
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      ])
 
-    if (adminResult && !adminResult.error) {
-      router.push('/analytics')
-      router.refresh()
-      return
+      if (adminResult && !adminResult.error) {
+        router.push('/analytics')
+        router.refresh()
+        return
+      }
+
+      // Then try client login
+      const clientResult = await Promise.race([
+        signIn('client-login', { email, password, redirect: false }),
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      ])
+
+      if (clientResult && !clientResult.error) {
+        router.push('/client/dashboard')
+        router.refresh()
+        return
+      }
+
+      setError('Invalid email or password')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg === 'timeout' ? 'Login timed out — server may be starting up. Try again.' : `Login failed: ${msg}`)
     }
-
-    const clientResult = await signIn('client-login', {
-      email,
-      password,
-      redirect: false,
-    })
-
-    if (clientResult && !clientResult.error) {
-      router.push('/client/dashboard')
-      router.refresh()
-      return
-    }
-
-    setError('Invalid email or password')
     setLoading(false)
   }
 

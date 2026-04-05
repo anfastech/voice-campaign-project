@@ -22,10 +22,10 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Try admin login first
-      const adminResult = await Promise.race([
-        signIn('admin-login', { email, password, redirect: false }),
-        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      // Try both login providers in parallel for speed
+      const [adminResult, clientResult] = await Promise.all([
+        signIn('admin-login', { email, password, redirect: false }).catch(() => null),
+        signIn('client-login', { email, password, redirect: false }).catch(() => null),
       ])
 
       if (adminResult && !adminResult.error) {
@@ -33,12 +33,6 @@ export default function LoginPage() {
         router.refresh()
         return
       }
-
-      // Then try client login
-      const clientResult = await Promise.race([
-        signIn('client-login', { email, password, redirect: false }),
-        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
-      ])
 
       if (clientResult && !clientResult.error) {
         router.push('/client/dashboard')
@@ -49,7 +43,7 @@ export default function LoginPage() {
       setError('Invalid email or password')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setError(msg === 'timeout' ? 'Login timed out — server may be starting up. Try again.' : `Login failed: ${msg}`)
+      setError(`Login failed: ${msg}`)
     }
     setLoading(false)
   }

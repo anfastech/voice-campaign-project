@@ -21,14 +21,19 @@ export default async function proxy(req: NextRequest) {
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-secret-change-in-production',
   })
 
-  // Login pages — redirect to dashboard if already authenticated
-  if (pathname === '/login' || pathname === '/admin') {
+  // Login page — redirect to dashboard if already authenticated
+  if (pathname === '/login') {
     if (token) {
       const role = token.role as string
       const dest = role === 'client' ? '/client/dashboard' : '/analytics'
       return NextResponse.redirect(new URL(dest, req.url))
     }
     return NextResponse.next()
+  }
+
+  // /admin → redirect to unified /login
+  if (pathname === '/admin') {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Not logged in → redirect to login

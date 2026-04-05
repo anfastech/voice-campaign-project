@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
-export default function ClientLoginPage() {
+export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,66 +21,81 @@ export default function ClientLoginPage() {
     setError('')
     setLoading(true)
 
-    const result = await signIn('client-login', {
+    // Try admin login first, then client login
+    const adminResult = await signIn('admin-login', {
       email,
       password,
       redirect: false,
     })
 
-    if (result?.error) {
-      setError('Invalid email or password')
-      setLoading(false)
+    if (adminResult && !adminResult.error) {
+      router.push('/analytics')
+      router.refresh()
       return
     }
 
-    router.push('/client/dashboard')
-    router.refresh()
+    const clientResult = await signIn('client-login', {
+      email,
+      password,
+      redirect: false,
+    })
+
+    if (clientResult && !clientResult.error) {
+      router.push('/client/dashboard')
+      router.refresh()
+      return
+    }
+
+    setError('Invalid email or password')
+    setLoading(false)
   }
 
   return (
-    <Card className="w-full max-w-md shadow-none border">
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto w-10 h-10 rounded-lg bg-primary flex items-center justify-center mb-3">
-          <Zap className="w-5 h-5 text-primary-foreground" fill="currentColor" />
-        </div>
-        <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>Access your dashboard</CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-none border">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-10 h-10 rounded-lg bg-primary flex items-center justify-center mb-3">
+            <Zap className="w-5 h-5 text-primary-foreground" fill="currentColor" />
           </div>
+          <CardTitle className="text-xl">Sign in</CardTitle>
+          <CardDescription>Access your dashboard</CardDescription>
+        </CardHeader>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
